@@ -1,16 +1,140 @@
-<section id="statusBox" class="status muted">Připraveno.</section>
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<form id="playerBatchSetupForm" class="form">
-  <input name="nationality" placeholder="Národnost, např. Czechia" required>
-  <input name="count" type="number" min="1" max="100" value="6" required>
-  <button type="submit">Vygenerovat pole</button>
-</form>
+  <title>Hráči | Hockey Universe Simulator</title>
 
-<form id="playerBatchForm" class="form hidden">
-  <div id="playerRows"></div>
-  <button type="submit">Uložit hráče</button>
-</form>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
 
-<table>
-  <tbody id="playersTable"></tbody>
-</table>
+<body>
+  <div class="ice-grid"></div>
+  <div class="puck"></div>
+
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Player database</p>
+      <h1>Hráči</h1>
+      <p class="subtitle">
+        Hromadné přidávání hráčů, automatický unikátní sort rating a databáze aktivních hráčů.
+      </p>
+    </div>
+
+    <nav class="top-nav">
+      <a href="index.html">Dashboard</a>
+      <a href="players.html" class="active">Hráči</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section id="statusBox" class="status muted">
+      Připraveno.
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Hromadné přidání hráčů</h2>
+        <span class="pill">Batch insert</span>
+      </div>
+
+      <form id="playerBatchSetupForm" class="form">
+        <div class="row">
+          <input name="nationality" placeholder="Národnost, např. Czechia" required />
+          <input name="count" type="number" min="1" max="200" value="6" required />
+        </div>
+
+        <button class="btn" type="submit">Vygenerovat pole</button>
+      </form>
+
+      <form id="playerBatchForm" class="form hidden">
+        <div id="playerRows" class="player-rows"></div>
+
+        <button class="btn" type="submit">Uložit všechny hráče</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Filtry</h2>
+        <span class="pill">Search</span>
+      </div>
+
+      <div class="filters">
+        <input id="filterName" placeholder="Hledat podle jména" />
+
+        <input id="filterNationality" placeholder="Filtrovat národnost" />
+
+        <select id="filterPosition">
+          <option value="">Všechny pozice</option>
+          <option value="C">C</option>
+          <option value="LK">LK</option>
+          <option value="PK">PK</option>
+          <option value="LO">LO</option>
+          <option value="PO">PO</option>
+          <option value="G">G</option>
+        </select>
+
+        <select id="filterStatus">
+          <option value="active">Aktivní</option>
+          <option value="all">Všichni</option>
+          <option value="retired">Důchod</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="card dashboard">
+      <div class="stat">
+        <span id="playersCount">0</span>
+        <small>celkem hráčů</small>
+      </div>
+
+      <div class="stat">
+        <span id="activePlayersCount">0</span>
+        <small>aktivních hráčů</small>
+      </div>
+
+      <div class="stat">
+        <span id="shownPlayersCount">0</span>
+        <small>zobrazeno</small>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Databáze hráčů</h2>
+        <span class="pill live">Players</span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Jméno</th>
+              <th>Národnost</th>
+              <th>Rok</th>
+              <th>Věk</th>
+              <th>Pozice</th>
+              <th>Base</th>
+              <th>Raw</th>
+              <th>Current</th>
+              <th>Sort</th>
+              <th>Stav</th>
+            </tr>
+          </thead>
+
+          <tbody id="playersTable">
+            <tr>
+              <td colspan="10">Načítám hráče...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="players.js"></script>
+</body>
+</html>

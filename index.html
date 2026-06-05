@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Hockey Universe Simulator</title>
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="ice-grid"></div>
+  <div class="puck"></div>
+
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Supabase build</p>
+      <h1>Hockey Universe Simulator</h1>
+      <p class="subtitle">
+        Moderní webový kabát pro tvůj hokejový simulátor. Hráči, týmy, ratingy a postupně celý hokejový svět.
+      </p>
+    </div>
+
+    <button id="refreshBtn" class="btn secondary">Obnovit data</button>
+  </header>
+
+  <main class="container">
+    <section class="card dashboard">
+      <div class="stat">
+        <span id="playersCount">0</span>
+        <small>hráčů</small>
+      </div>
+      <div class="stat">
+        <span id="teamsCount">0</span>
+        <small>týmů</small>
+      </div>
+      <div class="stat">
+        <span id="activePlayersCount">0</span>
+        <small>aktivních hráčů</small>
+      </div>
+    </section>
+
+    <section id="statusBox" class="status muted">
+      Připraveno.
+    </section>
+
+    <section class="grid two">
+      <div class="card">
+        <div class="section-head">
+          <h2>Přidat hráče</h2>
+          <span class="pill">Player DB</span>
+        </div>
+
+        <form id="playerForm" class="form">
+          <input name="name" placeholder="Jméno hráče" required />
+          <input name="nationality" placeholder="Národnost, např. Czechia" required />
+
+          <div class="row">
+            <input name="birth_year" type="number" placeholder="Rok narození" min="1950" max="2100" value="2000" required />
+            <select name="position" required>
+              <option value="C">C</option>
+              <option value="LK">LK</option>
+              <option value="PK">PK</option>
+              <option value="LO">LO</option>
+              <option value="PO">PO</option>
+              <option value="G">G</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <input name="base_rating" type="number" step="0.001" min="1" max="100" value="50" required />
+            <button class="btn" type="submit">Uložit hráče</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2>Přidat tým</h2>
+          <span class="pill">League / Repre</span>
+        </div>
+
+        <form id="teamForm" class="form">
+          <input name="name" placeholder="Název týmu" required />
+          <input name="short_name" placeholder="Zkratka, např. MWM" maxlength="8" required />
+
+          <div class="row">
+            <select name="team_type" required>
+              <option value="league">Ligový tým</option>
+              <option value="national">Reprezentace</option>
+            </select>
+
+            <select name="age_category">
+              <option value="">Bez kategorie</option>
+              <option value="senior">Senior</option>
+              <option value="u21">U21</option>
+              <option value="u18">U18</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <input name="country" placeholder="Země / národnost, např. Czechia" />
+            <button class="btn" type="submit">Uložit tým</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <div class="card">
+        <div class="section-head">
+          <h2>Týmy</h2>
+          <span class="pill">Teams</span>
+        </div>
+
+        <div id="teamsList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2>Top hráči</h2>
+          <span class="pill live">Rating</span>
+        </div>
+
+        <div id="topPlayersList" class="list"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Databáze hráčů</h2>
+        <span class="pill">Players</span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Jméno</th>
+              <th>Národnost</th>
+              <th>Rok</th>
+              <th>Věk</th>
+              <th>Pozice</th>
+              <th>Base</th>
+              <th>Raw</th>
+              <th>Current</th>
+              <th>Sort</th>
+              <th>Stav</th>
+            </tr>
+          </thead>
+          <tbody id="playersTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

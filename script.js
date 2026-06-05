@@ -112,7 +112,7 @@ function renderPlayersTable() {
     return `
       <tr>
         <td><strong>${escapeHtml(player.name)}</strong></td>
-        <td>${escapeHtml(player.nationality)}</td>
+        <td>${renderCountry(player.nationality)}</td>
         <td>${player.birth_year}</td>
         <td>${age}</td>
         <td>${escapeHtml(player.position)}</td>
@@ -226,4 +226,16 @@ loadAll().catch(error => {
 });
 function getFlag(countryCode) {
     return `images/flags/${countryCode.toLowerCase()}.webp`;
+}
+function renderCountry(countryCode) {
+    return `
+        <span class="country-cell">
+            <img
+                src="${getFlag(countryCode)}"
+                alt="${countryCode}"
+                class="flag"
+            >
+            ${countryCode}
+        </span>
+    `;
 }

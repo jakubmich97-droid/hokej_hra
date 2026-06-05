@@ -224,3 +224,6 @@ loadAll().catch(error => {
   console.error(error);
   setStatus(`Chyba při prvním načtení: ${error.message}`, "error");
 });
+function getFlag(countryCode) {
+    return `images/flags/${countryCode.toLowerCase()}.webp`;
+}

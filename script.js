@@ -20,8 +20,7 @@ const els = {
   teamsCount: document.querySelector("#teamsCount"),
   activePlayersCount: document.querySelector("#activePlayersCount"),
 
-  playerForm: document.querySelector("#playerForm"),
-  teamForm: document.querySelector("#teamForm"),
+   teamForm: document.querySelector("#teamForm"),
 
   teamsList: document.querySelector("#teamsList"),
   topPlayersList: document.querySelector("#topPlayersList"),
@@ -140,51 +139,6 @@ els.refreshBtn.addEventListener("click", async () => {
   }
 });
 
-els.playerForm.addEventListener("submit", async event => {
-  event.preventDefault();
-
-  const form = new FormData(event.target);
-  const name = String(form.get("name")).trim();
-  const nationality = String(form.get("nationality")).trim();
-  const birthYear = Number(form.get("birth_year"));
-  const position = String(form.get("position"));
-  const baseRating = Number(form.get("base_rating"));
-
-  const rawRating = baseRating;
-  const age = CURRENT_SEASON - birthYear;
-  const ageModifier = getAgeModifier(age);
-  const currentRating = clamp(rawRating * ageModifier, 1, 100);
-  const sortRating = createSortRating(currentRating, `${name}|${nationality}|${birthYear}|${position}`);
-
-  const newPlayer = {
-    name,
-    nationality,
-    birth_year: birthYear,
-    position,
-    base_rating: round(baseRating, 3),
-    raw_rating: round(rawRating, 3),
-    current_rating: round(currentRating, 3),
-    sort_rating: round(sortRating, 6),
-    active: true,
-    retired_season: null
-  };
-
-  try {
-    setStatus("Ukládám hráče...");
-    const { error } = await db.from("hockey_players").insert(newPlayer);
-    if (error) throw error;
-
-    event.target.reset();
-    event.target.elements.base_rating.value = 50;
-    event.target.elements.birth_year.value = 2000;
-
-    await loadAll();
-    setStatus("Hráč uložen.", "ok");
-  } catch (error) {
-    console.error(error);
-    setStatus(`Chyba při ukládání hráče: ${error.message}`, "error");
-  }
-});
 
 els.teamForm.addEventListener("submit", async event => {
   event.preventDefault();

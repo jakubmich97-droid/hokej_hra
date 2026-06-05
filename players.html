@@ -1,0 +1,16 @@
+<section id="statusBox" class="status muted">Připraveno.</section>
+
+<form id="playerBatchSetupForm" class="form">
+  <input name="nationality" placeholder="Národnost, např. Czechia" required>
+  <input name="count" type="number" min="1" max="100" value="6" required>
+  <button type="submit">Vygenerovat pole</button>
+</form>
+
+<form id="playerBatchForm" class="form hidden">
+  <div id="playerRows"></div>
+  <button type="submit">Uložit hráče</button>
+</form>
+
+<table>
+  <tbody id="playersTable"></tbody>
+</table>

@@ -22,6 +22,11 @@
       </p>
     </div>
 
+    <nav class="top-nav">
+        <a href="index.html" class="active">Dashboard</a>
+        <a href="players.html">Hráči</a>
+    </nav>
+    
     <button id="refreshBtn" class="btn secondary">Obnovit data</button>
   </header>
 
@@ -46,34 +51,20 @@
     </section>
 
     <section class="grid two">
-      <div class="card">
-        <div class="section-head">
-          <h2>Přidat hráče</h2>
-          <span class="pill">Player DB</span>
-        </div>
+    <div class="card">
+    <div class="section-head">
+        <h2>Hráči</h2>
+        <span class="pill">Player Database</span>
+    </div>
 
-        <form id="playerForm" class="form">
-          <input name="name" placeholder="Jméno hráče" required />
-          <input name="nationality" placeholder="Národnost, např. Czechia" required />
+    <p class="subtitle">
+        Správa hráčů byla přesunuta na samostatnou stránku.
+    </p>
 
-          <div class="row">
-            <input name="birth_year" type="number" placeholder="Rok narození" min="1950" max="2100" value="2000" required />
-            <select name="position" required>
-              <option value="C">C</option>
-              <option value="LK">LK</option>
-              <option value="PK">PK</option>
-              <option value="LO">LO</option>
-              <option value="PO">PO</option>
-              <option value="G">G</option>
-            </select>
-          </div>
-
-          <div class="row">
-            <input name="base_rating" type="number" step="0.001" min="1" max="100" value="50" required />
-            <button class="btn" type="submit">Uložit hráče</button>
-          </div>
-        </form>
-      </div>
+    <a href="players.html" class="btn">
+        Otevřít správu hráčů
+    </a>
+</div>
 
       <div class="card">
         <div class="section-head">

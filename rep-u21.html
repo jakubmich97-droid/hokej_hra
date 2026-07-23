@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rep U21 | Hockey Universe Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body data-national-category="u21" data-category-label="U21">
+  <div class="ice-grid"></div><div class="puck"></div>
+  <header class="game-topbar">
+    <div class="game-topbar-inner">
+      <a href="index.html" class="game-brand" aria-label="Hockey Universe Simulator">
+        <span class="brand-mark">HU</span>
+        <span class="brand-copy"><strong>Hockey Universe</strong><small>Simulator</small></span>
+      </a>
+      <nav class="game-nav" aria-label="Hlavní navigace" data-active="rep-u21"></nav>
+      <div class="season-chip"><span class="live-dot"></span>Sezóna 2026</div>
+    </div>
+  </header>
+  <main class="container">
+    <section class="page-hero compact-hero">
+      <div>
+        <p class="eyebrow">National teams · U21</p>
+        <h1>Rep U21</h1>
+        <p class="subtitle">Přehled reprezentací do 21 let připravených pro mezinárodní zápasy.</p>
+      </div>
+      <div class="hero-emblem" aria-hidden="true">U21</div>
+    </section>
+    <section id="statusBox" class="status muted">Načítám reprezentace...</section>
+    <section class="dashboard stats-grid">
+      <div class="stat">
+        <span class="stat-code">TMS</span><small>Reprezentace</small>
+        <span id="nationalTeamsCount" class="stat-value">0</span><em>v kategorii U21</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code">CAT</span><small>Kategorie</small>
+        <span class="stat-value text-value">U21</span><em>výběr do 21 let</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code live">MCH</span><small>Rozpis</small>
+        <span id="nationalMatchesCount" class="stat-value">0</span><em>zápasů v sezóně</em>
+      </div>
+    </section>
+    <section class="card">
+      <div class="section-head">
+        <div><span class="section-kicker">National directory</span><h2>Reprezentace U21</h2></div>
+        <a href="matches.html" class="pill">Přejít na zápasy</a>
+      </div>
+      <div id="nationalTeamsGrid" class="team-grid"></div>
+    </section>
+  </main>
+  <script src="navigation.js"></script>
+  <script src="national.js"></script>
+</body>
+</html>

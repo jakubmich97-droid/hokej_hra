@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zápasy | Hockey Universe Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="ice-grid"></div><div class="puck"></div>
+  <header class="game-topbar">
+    <div class="game-topbar-inner">
+      <a href="index.html" class="game-brand" aria-label="Hockey Universe Simulator">
+        <span class="brand-mark">HU</span>
+        <span class="brand-copy"><strong>Hockey Universe</strong><small>Simulator</small></span>
+      </a>
+      <nav class="game-nav" aria-label="Hlavní navigace" data-active="matches"></nav>
+      <div class="season-chip"><span class="live-dot"></span>Sezóna 2026</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="page-hero compact-hero">
+      <div>
+        <p class="eyebrow">Schedule generator</p>
+        <h1>Zápasy</h1>
+        <p class="subtitle">
+          Generuj rozpis ligy a reprezentačních kategorií, potom sleduj průběh simulace.
+        </p>
+      </div>
+      <div class="hero-emblem" aria-hidden="true">VS</div>
+    </section>
+
+    <section id="statusBox" class="status muted">Načítám zápasy...</section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Competition setup</span>
+          <h2>Generovat rozpis</h2>
+        </div>
+        <span class="pill">Season 2026</span>
+      </div>
+
+      <div class="generator-layout">
+        <div class="generator-panel">
+          <span class="generator-label">Liga</span>
+          <strong>6 týmů · 10 kol · 30 zápasů</strong>
+          <p>Každý s každým jednou doma a jednou venku.</p>
+          <button class="btn generate-btn" type="button" data-generate="league">
+            Generovat zápasy Liga
+          </button>
+        </div>
+
+        <div class="generator-panel">
+          <span class="generator-label">Repre</span>
+          <strong>Generování podle věkové kategorie</strong>
+          <p>Každá kategorie dostane vlastní samostatný rozpis.</p>
+          <div class="button-group">
+            <button class="btn secondary generate-btn" type="button" data-generate="national" data-category="senior">
+              Sen
+            </button>
+            <button class="btn secondary generate-btn" type="button" data-generate="national" data-category="u21">
+              U21
+            </button>
+            <button class="btn secondary generate-btn" type="button" data-generate="national" data-category="u18">
+              U18
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard stats-grid">
+      <div class="stat">
+        <span class="stat-code">ALL</span><small>Celkem zápasů</small>
+        <span id="matchesCount" class="stat-value">0</span><em>v sezóně 2026</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code">LGE</span><small>Liga</small>
+        <span id="leagueMatchesCount" class="stat-value">0</span><em>ligových zápasů</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code live">REP</span><small>Repre</small>
+        <span id="nationalMatchesCount" class="stat-value">0</span><em>reprezentačních zápasů</em>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Match database</span>
+          <h2>Rozpis a výsledky</h2>
+        </div>
+        <button id="refreshMatchesBtn" class="btn secondary compact-btn" type="button">Obnovit</button>
+      </div>
+
+      <div class="match-filters">
+        <select id="filterCompetition">
+          <option value="">Liga i Repre</option>
+          <option value="league">Liga</option>
+          <option value="national">Repre</option>
+        </select>
+        <select id="filterCategory">
+          <option value="">Všechny kategorie</option>
+          <option value="senior">Sen</option>
+          <option value="u21">U21</option>
+          <option value="u18">U18</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table class="matches-table">
+          <thead>
+            <tr>
+              <th>Rozdělení</th>
+              <th>Kolo</th>
+              <th>Domácí tým</th>
+              <th>Hostující tým</th>
+              <th>Útok domácí</th>
+              <th>Obrana domácí</th>
+              <th>Útok hosté</th>
+              <th>Obrana hosté</th>
+              <th>Střely domácí</th>
+              <th>Střely hosté</th>
+              <th>Góly domácí</th>
+              <th>Góly hosté</th>
+              <th>Výsledek domácí</th>
+              <th>Výsledek hosté</th>
+            </tr>
+          </thead>
+          <tbody id="matchesTable">
+            <tr><td colspan="14">Načítám zápasy...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="navigation.js"></script>
+  <script src="matches.js"></script>
+</body>
+</html>

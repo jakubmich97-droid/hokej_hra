@@ -23,24 +23,7 @@
         </span>
       </a>
 
-      <nav class="game-nav" aria-label="Hlavní navigace">
-        <a href="index.html" class="active">
-          <span class="nav-icon" aria-hidden="true">▦</span>
-          <span>Dashboard</span>
-        </a>
-        <a href="players.html">
-          <span class="nav-icon" aria-hidden="true">●</span>
-          <span>Hráči</span>
-        </a>
-        <a href="goalies.html">
-          <span class="nav-icon" aria-hidden="true">◉</span>
-          <span>Brankáři</span>
-        </a>
-        <a href="teams.html">
-          <span class="nav-icon" aria-hidden="true">◆</span>
-          <span>Týmy</span>
-        </a>
-      </nav>
+      <nav class="game-nav" aria-label="Hlavní navigace" data-active="dashboard"></nav>
 
       <div class="season-chip">
         <span class="live-dot"></span>
@@ -157,6 +140,44 @@
       </div>
     </section>
 
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Competition center</span>
+          <h2>Soutěže a zápasy</h2>
+        </div>
+        <span class="pill live">Season 2026</span>
+      </div>
+
+      <div class="competition-grid">
+        <a href="league.html" class="competition-card">
+          <span class="competition-code">LGE</span>
+          <strong>Liga</strong>
+          <small>6 týmů · doma i venku</small>
+        </a>
+        <a href="matches.html" class="competition-card">
+          <span class="competition-code">MCH</span>
+          <strong>Zápasy</strong>
+          <small>Rozpis a výsledky</small>
+        </a>
+        <a href="rep-sen.html" class="competition-card">
+          <span class="competition-code">SEN</span>
+          <strong>Rep Sen</strong>
+          <small>Seniorské reprezentace</small>
+        </a>
+        <a href="rep-u21.html" class="competition-card">
+          <span class="competition-code">U21</span>
+          <strong>Rep U21</strong>
+          <small>Reprezentace do 21 let</small>
+        </a>
+        <a href="rep-u18.html" class="competition-card">
+          <span class="competition-code">U18</span>
+          <strong>Rep U18</strong>
+          <small>Reprezentace do 18 let</small>
+        </a>
+      </div>
+    </section>
+
     <section class="grid two">
       <div class="card">
         <div class="section-head">
@@ -214,6 +235,7 @@
     </section>
   </main>
 
+  <script src="navigation.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

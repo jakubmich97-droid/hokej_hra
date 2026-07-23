@@ -24,24 +24,7 @@
         </span>
       </a>
 
-      <nav class="game-nav" aria-label="Hlavní navigace">
-        <a href="index.html">
-          <span class="nav-icon" aria-hidden="true">▦</span>
-          <span>Dashboard</span>
-        </a>
-        <a href="players.html">
-          <span class="nav-icon" aria-hidden="true">●</span>
-          <span>Hráči</span>
-        </a>
-        <a href="goalies.html">
-          <span class="nav-icon" aria-hidden="true">◉</span>
-          <span>Brankáři</span>
-        </a>
-        <a href="teams.html" class="active">
-          <span class="nav-icon" aria-hidden="true">◆</span>
-          <span>Týmy</span>
-        </a>
-      </nav>
+      <nav class="game-nav" aria-label="Hlavní navigace" data-active="teams"></nav>
 
       <div class="season-chip">
         <span class="live-dot"></span>
@@ -233,6 +216,7 @@
     </form>
   </dialog>
 
+  <script src="navigation.js"></script>
   <script src="teams.js"></script>
 </body>
 </html>

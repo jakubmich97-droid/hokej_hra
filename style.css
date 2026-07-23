@@ -185,10 +185,17 @@ a {
   align-items: center;
   justify-content: center;
   gap: 5px;
+  max-width: 100%;
   padding: 5px;
+  overflow-x: auto;
   border: 1px solid rgba(137, 191, 230, 0.13);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.035);
+  scrollbar-width: none;
+}
+
+.game-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .game-nav a {
@@ -620,6 +627,7 @@ h3 {
   font-weight: 950;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  text-decoration: none;
 }
 
 .pill.live {
@@ -698,6 +706,71 @@ h3 {
   color: #00111c;
   background: var(--ice);
   transform: translateX(3px);
+}
+
+.competition-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.competition-card {
+  position: relative;
+  display: grid;
+  min-height: 150px;
+  align-content: end;
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(137, 191, 230, 0.14);
+  border-radius: 16px 4px 16px 4px;
+  color: var(--text);
+  background: linear-gradient(145deg, rgba(17, 39, 62, 0.86), rgba(5, 17, 30, 0.9));
+  text-decoration: none;
+  transition: 170ms ease;
+}
+
+.competition-card::after {
+  position: absolute;
+  top: -42px;
+  right: -42px;
+  width: 120px;
+  height: 120px;
+  content: "";
+  border: 18px solid rgba(87, 214, 255, 0.04);
+  border-radius: 50%;
+}
+
+.competition-card:hover {
+  border-color: rgba(87, 214, 255, 0.4);
+  background: linear-gradient(145deg, rgba(21, 57, 89, 0.92), rgba(6, 22, 38, 0.94));
+  transform: translateY(-3px);
+}
+
+.competition-card strong {
+  position: relative;
+  z-index: 1;
+  font-size: 1.12rem;
+}
+
+.competition-card small {
+  position: relative;
+  z-index: 1;
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.competition-code {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  padding: 6px 8px;
+  border: 1px solid rgba(87, 214, 255, 0.24);
+  border-radius: 5px;
+  color: var(--ice);
+  background: rgba(87, 214, 255, 0.07);
+  font-size: 0.66rem;
+  font-weight: 1000;
+  letter-spacing: 0.1em;
 }
 
 .form {
@@ -882,6 +955,157 @@ select:focus {
 
 .dialog-actions .btn {
   min-width: 150px;
+}
+
+.generator-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.generator-panel {
+  display: grid;
+  align-content: start;
+  padding: 20px;
+  border: 1px solid rgba(137, 191, 230, 0.14);
+  border-radius: 15px 4px 15px 4px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.generator-label {
+  width: fit-content;
+  margin-bottom: 10px;
+  padding: 5px 7px;
+  border: 1px solid rgba(87, 214, 255, 0.22);
+  border-radius: 5px;
+  color: var(--ice);
+  background: rgba(87, 214, 255, 0.07);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.generator-panel p,
+.table-note {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.generator-panel .btn {
+  margin-top: auto;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: auto;
+}
+
+.button-group .btn {
+  min-width: 88px;
+}
+
+.btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  filter: grayscale(0.7);
+  transform: none;
+}
+
+.compact-btn {
+  min-height: 38px;
+}
+
+.match-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 260px));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.matches-table {
+  min-width: 1780px;
+}
+
+.league-table {
+  min-width: 720px;
+}
+
+.team-table-name {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.empty-slot {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.table-note {
+  margin: 14px 0 0;
+  font-size: 0.82rem;
+}
+
+.competition-tag,
+.result-code {
+  display: inline-flex;
+  min-width: 48px;
+  justify-content: center;
+  padding: 5px 7px;
+  border: 1px solid rgba(87, 214, 255, 0.2);
+  border-radius: 5px;
+  color: #bdeeff;
+  background: rgba(87, 214, 255, 0.07);
+  font-size: 0.7rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.competition-tag.national {
+  color: #ffe4a8;
+  border-color: rgba(255, 200, 87, 0.24);
+  background: rgba(255, 200, 87, 0.07);
+}
+
+.result-v,
+.result-vp {
+  color: #c7fbe4;
+  border-color: rgba(61, 228, 160, 0.25);
+  background: rgba(61, 228, 160, 0.08);
+}
+
+.result-p,
+.result-pp {
+  color: #ffd0d7;
+  border-color: rgba(255, 79, 103, 0.24);
+  background: rgba(255, 79, 103, 0.07);
+}
+
+.empty-competition {
+  display: grid;
+  min-height: 190px;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 28px;
+  border: 1px dashed rgba(87, 214, 255, 0.22);
+  border-radius: 16px 4px 16px 4px;
+  color: var(--muted);
+  text-align: center;
+  background: rgba(87, 214, 255, 0.025);
+}
+
+.empty-competition strong {
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.text-value {
+  font-size: clamp(1.7rem, 4vw, 2.35rem) !important;
+  letter-spacing: 0.02em !important;
 }
 
 .list {
@@ -1223,6 +1447,31 @@ tbody tr:last-child td {
   }
 }
 
+@media (max-width: 1400px) {
+  .game-topbar-inner {
+    grid-template-columns: 1fr auto;
+    gap: 10px 18px;
+    padding: 11px 0;
+  }
+
+  .game-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    justify-content: flex-start;
+    order: 3;
+  }
+
+  .season-chip {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .competition-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 820px) {
   .container {
     width: min(100% - 24px, 1240px);
@@ -1255,6 +1504,11 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 
+  .competition-grid,
+  .generator-layout {
+    grid-template-columns: 1fr;
+  }
+
   .row {
     flex-direction: column;
   }
@@ -1275,6 +1529,10 @@ tbody tr:last-child td {
   .goalie-filters,
   .team-filters,
   .player-row {
+    grid-template-columns: 1fr;
+  }
+
+  .match-filters {
     grid-template-columns: 1fr;
   }
 
@@ -1306,7 +1564,7 @@ tbody tr:last-child td {
   }
 
   .game-nav a {
-    flex: 1;
+    flex: 0 0 auto;
     justify-content: center;
     min-width: 0;
     padding: 0 6px;

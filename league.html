@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liga | Hockey Universe Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="ice-grid"></div>
+  <div class="puck"></div>
+
+  <header class="game-topbar">
+    <div class="game-topbar-inner">
+      <a href="index.html" class="game-brand" aria-label="Hockey Universe Simulator">
+        <span class="brand-mark">HU</span>
+        <span class="brand-copy"><strong>Hockey Universe</strong><small>Simulator</small></span>
+      </a>
+      <nav class="game-nav" aria-label="Hlavní navigace" data-active="league"></nav>
+      <div class="season-chip"><span class="live-dot"></span>Sezóna 2026</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="page-hero compact-hero">
+      <div>
+        <p class="eyebrow">League control</p>
+        <h1>Liga</h1>
+        <p class="subtitle">
+          Šestičlenná soutěž hraná systémem každý s každým doma i venku.
+        </p>
+      </div>
+      <div class="hero-emblem" aria-hidden="true">LGE</div>
+    </section>
+
+    <section id="statusBox" class="status muted">Načítám ligové týmy...</section>
+
+    <section class="dashboard stats-grid">
+      <div class="stat">
+        <span class="stat-code">TMS</span>
+        <small>Obsazená místa</small>
+        <span id="leagueTeamsCount" class="stat-value">0</span>
+        <em>z maximálně 6 týmů</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code">RND</span>
+        <small>Počet kol</small>
+        <span class="stat-value">10</span>
+        <em>doma i venku</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code live">MCH</span>
+        <small>Počet zápasů</small>
+        <span class="stat-value">30</span>
+        <em>po kompletním obsazení</em>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">League slots</span>
+          <h2>Ligové týmy</h2>
+        </div>
+        <span class="pill">6 slots</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="league-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Tým</th>
+              <th>Zkratka</th>
+              <th>Země</th>
+              <th>Stav</th>
+            </tr>
+          </thead>
+          <tbody id="leagueTeamsTable">
+            <tr><td colspan="5">Načítám týmy...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="table-note">
+        Rozpis půjde vygenerovat po obsazení všech šesti míst.
+      </p>
+    </section>
+  </main>
+
+  <script src="navigation.js"></script>
+  <script src="league.js"></script>
+</body>
+</html>

@@ -13,37 +13,77 @@
   <div class="ice-grid"></div>
   <div class="puck"></div>
 
-  <header class="app-header">
-    <div>
-      <p class="eyebrow">Supabase build</p>
-      <h1>Hockey Universe Simulator</h1>
-      <p class="subtitle">
-        Moderní webový kabát pro tvůj hokejový simulátor. Hráči, týmy, ratingy a postupně celý hokejový svět.
-      </p>
-    </div>
+  <header class="game-topbar">
+    <div class="game-topbar-inner">
+      <a href="index.html" class="game-brand" aria-label="Hockey Universe Simulator">
+        <span class="brand-mark">HU</span>
+        <span class="brand-copy">
+          <strong>Hockey Universe</strong>
+          <small>Simulator</small>
+        </span>
+      </a>
 
-    <nav class="top-nav">
-      <a href="index.html" class="active">Dashboard</a>
-      <a href="players.html">Hráči</a>
-      <a href="teams.html">Týmy</a>
-    </nav>
-    
-    <button id="refreshBtn" class="btn secondary">Obnovit data</button>
+      <nav class="game-nav" aria-label="Hlavní navigace">
+        <a href="index.html" class="active">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="players.html">
+          <span class="nav-icon" aria-hidden="true">●</span>
+          <span>Hráči</span>
+        </a>
+        <a href="teams.html">
+          <span class="nav-icon" aria-hidden="true">◆</span>
+          <span>Týmy</span>
+        </a>
+      </nav>
+
+      <div class="season-chip">
+        <span class="live-dot"></span>
+        Sezóna 2026
+      </div>
+    </div>
   </header>
 
   <main class="container">
-    <section class="card dashboard">
+    <section class="page-hero dashboard-hero">
+      <div>
+        <p class="eyebrow">Franchise control</p>
+        <h1>Vybuduj svůj hokejový svět</h1>
+        <p class="subtitle">
+          Řiď hráče, týmy a ratingy. Tohle je centrální velín celé simulace.
+        </p>
+        <div class="hero-actions">
+          <a href="players.html" class="btn">Spravovat hráče</a>
+          <button id="refreshBtn" class="btn secondary" type="button">Obnovit data</button>
+        </div>
+      </div>
+
+      <div class="hero-panel">
+        <span class="hero-panel-label">Stav světa</span>
+        <strong>Databáze online</strong>
+        <small><span class="live-dot"></span> Supabase synchronizováno</small>
+      </div>
+    </section>
+
+    <section class="dashboard stats-grid">
       <div class="stat">
-        <span id="playersCount">0</span>
-        <small>hráčů</small>
+        <span class="stat-code">PLR</span>
+        <small>Hráči</small>
+        <span id="playersCount" class="stat-value">0</span>
+        <em>celá databáze</em>
       </div>
       <div class="stat">
-        <span id="teamsCount">0</span>
-        <small>týmů</small>
+        <span class="stat-code">TMS</span>
+        <small>Týmy</small>
+        <span id="teamsCount" class="stat-value">0</span>
+        <em>kluby a reprezentace</em>
       </div>
       <div class="stat">
-        <span id="activePlayersCount">0</span>
-        <small>aktivních hráčů</small>
+        <span class="stat-code live">ACT</span>
+        <small>Aktivní hráči</small>
+        <span id="activePlayersCount" class="stat-value">0</span>
+        <em>připravení do hry</em>
       </div>
     </section>
 
@@ -52,33 +92,39 @@
     </section>
 
     <section class="grid two">
-      <div class="card">
+      <div class="card action-card">
         <div class="section-head">
-          <h2>Hráči</h2>
+          <div>
+            <span class="section-kicker">Player management</span>
+            <h2>Hráči</h2>
+          </div>
           <span class="pill">Player Database</span>
         </div>
 
-        <p class="subtitle">
-          Správa hráčů byla přesunuta na samostatnou stránku.
+        <p>
+          Přidávej hráče, filtruj soupisku a sleduj jejich aktuální rating.
         </p>
 
-        <a href="players.html" class="btn">
-          Otevřít správu hráčů
+        <a href="players.html" class="action-link">
+          Otevřít databázi <span aria-hidden="true">→</span>
         </a>
       </div>
 
-      <div class="card">
+      <div class="card action-card team-action">
         <div class="section-head">
-          <h2>Týmy</h2>
+          <div>
+            <span class="section-kicker">Team management</span>
+            <h2>Týmy</h2>
+          </div>
           <span class="pill">Team Database</span>
         </div>
 
-        <p class="subtitle">
-          Přidávání týmů, filtrování a databáze klubů i reprezentací jsou na samostatné stránce.
+        <p>
+          Buduj ligové kluby, reprezentace a jejich vizuální identitu.
         </p>
 
-        <a href="teams.html" class="btn">
-          Otevřít správu týmů
+        <a href="teams.html" class="action-link">
+          Otevřít databázi <span aria-hidden="true">→</span>
         </a>
       </div>
     </section>
@@ -86,7 +132,10 @@
     <section class="grid two">
       <div class="card">
         <div class="section-head">
-          <h2>Týmy</h2>
+          <div>
+            <span class="section-kicker">World overview</span>
+            <h2>Týmy</h2>
+          </div>
           <span class="pill">Teams</span>
         </div>
 
@@ -95,7 +144,10 @@
 
       <div class="card">
         <div class="section-head">
-          <h2>Top hráči</h2>
+          <div>
+            <span class="section-kicker">Power ranking</span>
+            <h2>Top hráči</h2>
+          </div>
           <span class="pill live">Rating</span>
         </div>
 
@@ -105,7 +157,10 @@
 
     <section class="card">
       <div class="section-head">
-        <h2>Databáze hráčů</h2>
+        <div>
+          <span class="section-kicker">Scouting database</span>
+          <h2>Databáze hráčů</h2>
+        </div>
         <span class="pill">Players</span>
       </div>
 

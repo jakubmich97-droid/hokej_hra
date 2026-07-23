@@ -14,30 +14,60 @@
   <div class="ice-grid"></div>
   <div class="puck"></div>
 
-  <header class="app-header">
-    <div>
-      <p class="eyebrow">Player database</p>
-      <h1>Hráči</h1>
-      <p class="subtitle">
-        Hromadné přidávání hráčů, automatický unikátní sort rating a databáze aktivních hráčů.
-      </p>
-    </div>
+  <header class="game-topbar">
+    <div class="game-topbar-inner">
+      <a href="index.html" class="game-brand" aria-label="Hockey Universe Simulator">
+        <span class="brand-mark">HU</span>
+        <span class="brand-copy">
+          <strong>Hockey Universe</strong>
+          <small>Simulator</small>
+        </span>
+      </a>
 
-    <nav class="top-nav">
-      <a href="index.html">Dashboard</a>
-      <a href="players.html" class="active">Hráči</a>
-      <a href="teams.html">Týmy</a>
-    </nav>
+      <nav class="game-nav" aria-label="Hlavní navigace">
+        <a href="index.html">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="players.html" class="active">
+          <span class="nav-icon" aria-hidden="true">●</span>
+          <span>Hráči</span>
+        </a>
+        <a href="teams.html">
+          <span class="nav-icon" aria-hidden="true">◆</span>
+          <span>Týmy</span>
+        </a>
+      </nav>
+
+      <div class="season-chip">
+        <span class="live-dot"></span>
+        Sezóna 2026
+      </div>
+    </div>
   </header>
 
   <main class="container">
+    <section class="page-hero compact-hero">
+      <div>
+        <p class="eyebrow">Player database</p>
+        <h1>Hráči</h1>
+        <p class="subtitle">
+          Vytvářej hokejisty, pracuj se soupiskou a sleduj vývoj jejich ratingu.
+        </p>
+      </div>
+      <div class="hero-emblem" aria-hidden="true">PLR</div>
+    </section>
+
     <section id="statusBox" class="status muted">
       Připraveno.
     </section>
 
     <section class="card">
       <div class="section-head">
-        <h2>Hromadné přidání hráčů</h2>
+        <div>
+          <span class="section-kicker">Create prospects</span>
+          <h2>Hromadné přidání hráčů</h2>
+        </div>
         <span class="pill">Batch insert</span>
       </div>
 
@@ -92,7 +122,10 @@
 
     <section class="card">
       <div class="section-head">
-        <h2>Filtry</h2>
+        <div>
+          <span class="section-kicker">Scouting tools</span>
+          <h2>Filtry</h2>
+        </div>
         <span class="pill">Search</span>
       </div>
 
@@ -119,26 +152,35 @@
       </div>
     </section>
 
-    <section class="card dashboard">
+    <section class="dashboard stats-grid">
       <div class="stat">
-        <span id="playersCount">0</span>
-        <small>celkem hráčů</small>
+        <span class="stat-code">ALL</span>
+        <small>Celkem hráčů</small>
+        <span id="playersCount" class="stat-value">0</span>
+        <em>v databázi</em>
       </div>
 
       <div class="stat">
-        <span id="activePlayersCount">0</span>
-        <small>aktivních hráčů</small>
+        <span class="stat-code live">ACT</span>
+        <small>Aktivní hráči</small>
+        <span id="activePlayersCount" class="stat-value">0</span>
+        <em>připravení do hry</em>
       </div>
 
       <div class="stat">
-        <span id="shownPlayersCount">0</span>
-        <small>zobrazeno</small>
+        <span class="stat-code">FLT</span>
+        <small>Zobrazeno</small>
+        <span id="shownPlayersCount" class="stat-value">0</span>
+        <em>podle filtrů</em>
       </div>
     </section>
 
     <section class="card">
       <div class="section-head">
-        <h2>Databáze hráčů</h2>
+        <div>
+          <span class="section-kicker">Active roster</span>
+          <h2>Databáze hráčů</h2>
+        </div>
         <span class="pill live">Players</span>
       </div>
 

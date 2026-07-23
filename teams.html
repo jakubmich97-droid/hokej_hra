@@ -14,30 +14,60 @@
   <div class="ice-grid"></div>
   <div class="puck"></div>
 
-  <header class="app-header">
-    <div>
-      <p class="eyebrow">Team database</p>
-      <h1>Týmy</h1>
-      <p class="subtitle">
-        Přidávání ligových týmů a reprezentací včetně jejich log.
-      </p>
-    </div>
+  <header class="game-topbar">
+    <div class="game-topbar-inner">
+      <a href="index.html" class="game-brand" aria-label="Hockey Universe Simulator">
+        <span class="brand-mark">HU</span>
+        <span class="brand-copy">
+          <strong>Hockey Universe</strong>
+          <small>Simulator</small>
+        </span>
+      </a>
 
-    <nav class="top-nav">
-      <a href="index.html">Dashboard</a>
-      <a href="players.html">Hráči</a>
-      <a href="teams.html" class="active">Týmy</a>
-    </nav>
+      <nav class="game-nav" aria-label="Hlavní navigace">
+        <a href="index.html">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="players.html">
+          <span class="nav-icon" aria-hidden="true">●</span>
+          <span>Hráči</span>
+        </a>
+        <a href="teams.html" class="active">
+          <span class="nav-icon" aria-hidden="true">◆</span>
+          <span>Týmy</span>
+        </a>
+      </nav>
+
+      <div class="season-chip">
+        <span class="live-dot"></span>
+        Sezóna 2026
+      </div>
+    </div>
   </header>
 
   <main class="container">
+    <section class="page-hero compact-hero">
+      <div>
+        <p class="eyebrow">Team database</p>
+        <h1>Týmy</h1>
+        <p class="subtitle">
+          Zakládej kluby a reprezentace, spravuj jejich kategorie a identitu.
+        </p>
+      </div>
+      <div class="hero-emblem" aria-hidden="true">TMS</div>
+    </section>
+
     <section id="statusBox" class="status muted">
       Připraveno.
     </section>
 
     <section class="card">
       <div class="section-head">
-        <h2>Přidat tým</h2>
+        <div>
+          <span class="section-kicker">Create franchise</span>
+          <h2>Přidat tým</h2>
+        </div>
         <span class="pill">League / Repre</span>
       </div>
 
@@ -88,7 +118,10 @@
 
     <section class="card">
       <div class="section-head">
-        <h2>Filtry</h2>
+        <div>
+          <span class="section-kicker">League tools</span>
+          <h2>Filtry</h2>
+        </div>
         <span class="pill">Search</span>
       </div>
 
@@ -111,26 +144,35 @@
       </div>
     </section>
 
-    <section class="card dashboard">
+    <section class="dashboard stats-grid">
       <div class="stat">
-        <span id="teamsCount">0</span>
-        <small>celkem týmů</small>
+        <span class="stat-code">ALL</span>
+        <small>Celkem týmů</small>
+        <span id="teamsCount" class="stat-value">0</span>
+        <em>v hokejovém světě</em>
       </div>
 
       <div class="stat">
-        <span id="leagueTeamsCount">0</span>
-        <small>ligových týmů</small>
+        <span class="stat-code">LGE</span>
+        <small>Ligové týmy</small>
+        <span id="leagueTeamsCount" class="stat-value">0</span>
+        <em>klubové soutěže</em>
       </div>
 
       <div class="stat">
-        <span id="nationalTeamsCount">0</span>
-        <small>reprezentací</small>
+        <span class="stat-code live">NAT</span>
+        <small>Reprezentace</small>
+        <span id="nationalTeamsCount" class="stat-value">0</span>
+        <em>národní výběry</em>
       </div>
     </section>
 
     <section class="card">
       <div class="section-head">
-        <h2>Databáze týmů</h2>
+        <div>
+          <span class="section-kicker">Franchise directory</span>
+          <h2>Databáze týmů</h2>
+        </div>
         <span class="pill live">Teams</span>
       </div>
 

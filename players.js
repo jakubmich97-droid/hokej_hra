@@ -42,6 +42,7 @@ async function loadPlayers() {
   const { data, error } = await db
     .from("hockey_players")
     .select("*")
+    .neq("position", "G")
     .order("sort_rating", { ascending: false });
 
   if (error) {
@@ -289,7 +290,7 @@ els.playerBatchForm.addEventListener("submit", async event => {
 });
 
 function renderPlayerRows(count) {
-  const positions = ["C", "LK", "PK", "LO", "PO", "G"];
+  const positions = ["C", "LK", "PK", "LO", "PO"];
 
   els.playerRows.innerHTML = Array.from({ length: count }, (_, index) => `
     <div class="player-row">

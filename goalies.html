@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Hráči | Hockey Universe Simulator</title>
+  <title>Brankáři | Hockey Universe Simulator</title>
 
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -29,11 +29,11 @@
           <span class="nav-icon" aria-hidden="true">▦</span>
           <span>Dashboard</span>
         </a>
-        <a href="players.html" class="active">
+        <a href="players.html">
           <span class="nav-icon" aria-hidden="true">●</span>
           <span>Hráči</span>
         </a>
-        <a href="goalies.html">
+        <a href="goalies.html" class="active">
           <span class="nav-icon" aria-hidden="true">◉</span>
           <span>Brankáři</span>
         </a>
@@ -53,13 +53,13 @@
   <main class="container">
     <section class="page-hero compact-hero">
       <div>
-        <p class="eyebrow">Player database</p>
-        <h1>Hráči</h1>
+        <p class="eyebrow">Goalie database</p>
+        <h1>Brankáři</h1>
         <p class="subtitle">
-          Vytvářej hokejisty, pracuj se soupiskou a sleduj vývoj jejich ratingu.
+          Buduj brankářskou databázi a sleduj zápasy, střely proti i úspěšnost zákroků.
         </p>
       </div>
-      <div class="hero-emblem" aria-hidden="true">PLR</div>
+      <div class="hero-emblem goalie-emblem" aria-hidden="true">GLS</div>
     </section>
 
     <section id="statusBox" class="status muted">
@@ -69,84 +69,66 @@
     <section class="card">
       <div class="section-head">
         <div>
-          <span class="section-kicker">Create prospects</span>
-          <h2>Hromadné přidání hráčů</h2>
+          <span class="section-kicker">Create goalies</span>
+          <h2>Hromadné přidání brankářů</h2>
         </div>
         <span class="pill">Batch insert</span>
       </div>
 
-      <form id="playerBatchSetupForm" class="form">
+      <form id="goalieBatchSetupForm" class="form">
         <div class="row">
           <select name="nationality" required>
-    <option value="">Vyber zemi</option>
-
-        <option value="CAN">CAN</option>
-        <option value="USA">USA</option>
-        <option value="CZE">CZE</option>
-        <option value="SVK">SVK</option>
-        <option value="SWE">SWE</option>
-        <option value="FIN">FIN</option>
-        <option value="NOR">NOR</option>
-        <option value="DEN">DEN</option>
-        
-        <option value="GER">GER</option>
-        <option value="SUI">SUI</option>
-        <option value="AUT">AUT</option>
-        <option value="LAT">LAT</option>
-        
-        <option value="FRA">FRA</option>
-        <option value="GBR">GBR</option>
-        <option value="POL">POL</option>
-        <option value="ITA">ITA</option>
-        
-        <option value="JPN">JPN</option>
-        <option value="KOR">KOR</option>
-        <option value="CHN">CHN</option>
-        
-        <option value="RUS">RUS</option>
-        <option value="BLR">BLR</option>
-        <option value="UKR">UKR</option>
-        
-        <option value="KAZ">KAZ</option>
-        <option value="HUN">HUN</option>
-        <option value="SLO">SLO</option>
-</select>
-          <input name="count" type="number" min="1" max="200" value="6" required />
+            <option value="">Vyber zemi</option>
+            <option value="CAN">CAN</option>
+            <option value="USA">USA</option>
+            <option value="CZE">CZE</option>
+            <option value="SVK">SVK</option>
+            <option value="SWE">SWE</option>
+            <option value="FIN">FIN</option>
+            <option value="NOR">NOR</option>
+            <option value="DEN">DEN</option>
+            <option value="GER">GER</option>
+            <option value="SUI">SUI</option>
+            <option value="AUT">AUT</option>
+            <option value="LAT">LAT</option>
+            <option value="FRA">FRA</option>
+            <option value="GBR">GBR</option>
+            <option value="POL">POL</option>
+            <option value="ITA">ITA</option>
+            <option value="JPN">JPN</option>
+            <option value="KOR">KOR</option>
+            <option value="CHN">CHN</option>
+            <option value="RUS">RUS</option>
+            <option value="BLR">BLR</option>
+            <option value="UKR">UKR</option>
+            <option value="KAZ">KAZ</option>
+            <option value="HUN">HUN</option>
+            <option value="SLO">SLO</option>
+          </select>
+          <input name="count" type="number" min="1" max="100" value="3" required />
         </div>
 
         <button class="btn" type="submit">Vygenerovat pole</button>
       </form>
 
-      <form id="playerBatchForm" class="form hidden">
-        <div id="playerRows" class="player-rows"></div>
-
-        <button class="btn" type="submit">Uložit všechny hráče</button>
+      <form id="goalieBatchForm" class="form hidden">
+        <div id="goalieRows" class="player-rows"></div>
+        <button class="btn" type="submit">Uložit všechny brankáře</button>
       </form>
     </section>
 
     <section class="card">
       <div class="section-head">
         <div>
-          <span class="section-kicker">Scouting tools</span>
+          <span class="section-kicker">Goalie scouting</span>
           <h2>Filtry</h2>
         </div>
         <span class="pill">Search</span>
       </div>
 
-      <div class="filters">
+      <div class="goalie-filters">
         <input id="filterName" placeholder="Hledat podle jména" />
-
         <input id="filterNationality" placeholder="Filtrovat národnost" />
-
-        <select id="filterPosition">
-          <option value="">Všechny pozice</option>
-          <option value="C">C</option>
-          <option value="LK">LK</option>
-          <option value="PK">PK</option>
-          <option value="LO">LO</option>
-          <option value="PO">PO</option>
-        </select>
-
         <select id="filterStatus">
           <option value="active">Aktivní</option>
           <option value="all">Všichni</option>
@@ -158,22 +140,20 @@
     <section class="dashboard stats-grid">
       <div class="stat">
         <span class="stat-code">ALL</span>
-        <small>Celkem hráčů</small>
-        <span id="playersCount" class="stat-value">0</span>
+        <small>Celkem brankářů</small>
+        <span id="goaliesCount" class="stat-value">0</span>
         <em>v databázi</em>
       </div>
-
       <div class="stat">
         <span class="stat-code live">ACT</span>
-        <small>Aktivní hráči</small>
-        <span id="activePlayersCount" class="stat-value">0</span>
+        <small>Aktivní brankáři</small>
+        <span id="activeGoaliesCount" class="stat-value">0</span>
         <em>připravení do hry</em>
       </div>
-
       <div class="stat">
         <span class="stat-code">FLT</span>
         <small>Zobrazeno</small>
-        <span id="shownPlayersCount" class="stat-value">0</span>
+        <span id="shownGoaliesCount" class="stat-value">0</span>
         <em>podle filtrů</em>
       </div>
     </section>
@@ -181,46 +161,44 @@
     <section class="card">
       <div class="section-head">
         <div>
-          <span class="section-kicker">Active roster</span>
-          <h2>Databáze hráčů</h2>
+          <span class="section-kicker">Crease roster · Season 2026</span>
+          <h2>Databáze brankářů</h2>
         </div>
-        <span class="pill live">Players</span>
+        <span class="pill live">Goalies</span>
       </div>
 
       <div class="table-wrap">
-        <table>
+        <table class="goalie-table">
           <thead>
             <tr>
               <th>Jméno</th>
               <th>Národnost</th>
               <th>Rok</th>
               <th>Věk</th>
-              <th>Pozice</th>
               <th>Base</th>
-              <th>Raw</th>
               <th>Current</th>
-              <th>Sort</th>
+              <th>Zápasy</th>
+              <th>Střely proti</th>
+              <th>Inkasované</th>
+              <th>Úspěšnost</th>
               <th>Stav</th>
               <th>Akce</th>
             </tr>
           </thead>
-
-          <tbody id="playersTable">
-            <tr>
-              <td colspan="11">Načítám hráče...</td>
-            </tr>
+          <tbody id="goaliesTable">
+            <tr><td colspan="12">Načítám brankáře...</td></tr>
           </tbody>
         </table>
       </div>
     </section>
   </main>
 
-  <dialog id="playerEditDialog" class="game-dialog">
-    <form id="playerEditForm" class="form dialog-form">
+  <dialog id="goalieEditDialog" class="game-dialog">
+    <form id="goalieEditForm" class="form dialog-form">
       <div class="dialog-head">
         <div>
-          <span class="section-kicker">Player editor</span>
-          <h2>Upravit hráče</h2>
+          <span class="section-kicker">Goalie editor</span>
+          <h2>Upravit brankáře</h2>
         </div>
         <button class="icon-btn" type="button" data-close-dialog aria-label="Zavřít">×</button>
       </div>
@@ -239,13 +217,7 @@
         </label>
         <label>
           <span>Pozice</span>
-          <select name="position" required>
-            <option value="C">C</option>
-            <option value="LK">LK</option>
-            <option value="PK">PK</option>
-            <option value="LO">LO</option>
-            <option value="PO">PO</option>
-          </select>
+          <input value="G · Brankář" disabled />
         </label>
       </div>
 
@@ -277,6 +249,6 @@
     </form>
   </dialog>
 
-  <script src="players.js"></script>
+  <script src="goalies.js"></script>
 </body>
 </html>

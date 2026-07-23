@@ -32,6 +32,10 @@
           <span class="nav-icon" aria-hidden="true">●</span>
           <span>Hráči</span>
         </a>
+        <a href="goalies.html">
+          <span class="nav-icon" aria-hidden="true">◉</span>
+          <span>Brankáři</span>
+        </a>
         <a href="teams.html">
           <span class="nav-icon" aria-hidden="true">◆</span>
           <span>Týmy</span>
@@ -51,7 +55,7 @@
         <p class="eyebrow">Franchise control</p>
         <h1>Vybuduj svůj hokejový svět</h1>
         <p class="subtitle">
-          Řiď hráče, týmy a ratingy. Tohle je centrální velín celé simulace.
+          Řiď hráče, brankáře, týmy a ratingy. Tohle je centrální velín celé simulace.
         </p>
         <div class="hero-actions">
           <a href="players.html" class="btn">Spravovat hráče</a>
@@ -66,12 +70,18 @@
       </div>
     </section>
 
-    <section class="dashboard stats-grid">
+    <section class="dashboard stats-grid dashboard-stats">
       <div class="stat">
         <span class="stat-code">PLR</span>
         <small>Hráči</small>
         <span id="playersCount" class="stat-value">0</span>
-        <em>celá databáze</em>
+        <em>hráči v poli</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code">GLS</span>
+        <small>Brankáři</small>
+        <span id="goaliesCount" class="stat-value">0</span>
+        <em>specialisté v brankovišti</em>
       </div>
       <div class="stat">
         <span class="stat-code">TMS</span>
@@ -81,7 +91,7 @@
       </div>
       <div class="stat">
         <span class="stat-code live">ACT</span>
-        <small>Aktivní hráči</small>
+        <small>Aktivní celkem</small>
         <span id="activePlayersCount" class="stat-value">0</span>
         <em>připravení do hry</em>
       </div>
@@ -91,7 +101,7 @@
       Připraveno.
     </section>
 
-    <section class="grid two">
+    <section class="grid three">
       <div class="card action-card">
         <div class="section-head">
           <div>
@@ -106,6 +116,24 @@
         </p>
 
         <a href="players.html" class="action-link">
+          Otevřít databázi <span aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <div class="card action-card goalie-action">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">Goalie management</span>
+            <h2>Brankáři</h2>
+          </div>
+          <span class="pill">Goalie Database</span>
+        </div>
+
+        <p>
+          Přidávej brankáře a sleduj jejich zápasy, zákroky a úspěšnost.
+        </p>
+
+        <a href="goalies.html" class="action-link">
           Otevřít databázi <span aria-hidden="true">→</span>
         </a>
       </div>

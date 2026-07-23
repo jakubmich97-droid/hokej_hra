@@ -419,6 +419,18 @@ h3 {
   border-radius: inherit;
 }
 
+.goalie-emblem {
+  color: var(--yellow);
+  border-color: rgba(255, 200, 87, 0.38);
+  background:
+    radial-gradient(circle, rgba(255, 200, 87, 0.14), rgba(3, 12, 22, 0.86) 68%);
+  box-shadow: inset 0 0 0 10px rgba(255, 200, 87, 0.025), 0 0 35px rgba(255, 200, 87, 0.09);
+}
+
+.goalie-emblem::after {
+  border-color: rgba(255, 200, 87, 0.3);
+}
+
 .card,
 .status {
   position: relative;
@@ -499,6 +511,14 @@ h3 {
 
 .grid.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .stat {
@@ -633,6 +653,12 @@ h3 {
   content: "TMS";
   border-color: rgba(61, 228, 160, 0.035);
   color: rgba(61, 228, 160, 0.07);
+}
+
+.action-card.goalie-action::after {
+  content: "GLS";
+  border-color: rgba(255, 200, 87, 0.04);
+  color: rgba(255, 200, 87, 0.09);
 }
 
 .action-card p {
@@ -965,6 +991,12 @@ tbody tr:last-child td {
   gap: 10px;
 }
 
+.goalie-filters {
+  display: grid;
+  grid-template-columns: 1.4fr 1.1fr 0.8fr;
+  gap: 10px;
+}
+
 .player-rows {
   display: grid;
   gap: 10px;
@@ -988,6 +1020,55 @@ tbody tr:last-child td {
   font-weight: 950;
   letter-spacing: 0.09em;
   text-transform: uppercase;
+}
+
+.position-lock {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 200, 87, 0.18);
+  border-radius: 10px 3px 10px 3px;
+  color: var(--yellow);
+  background: rgba(255, 200, 87, 0.055);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.goalie-table {
+  min-width: 1180px;
+}
+
+.save-percentage {
+  display: inline-flex;
+  min-width: 68px;
+  justify-content: center;
+  padding: 5px 8px;
+  border: 1px solid rgba(87, 214, 255, 0.2);
+  border-radius: 5px;
+  color: #bdeeff;
+  background: rgba(87, 214, 255, 0.07);
+  font-weight: 900;
+}
+
+.save-percentage.elite {
+  color: #c7fbe4;
+  border-color: rgba(61, 228, 160, 0.25);
+  background: rgba(61, 228, 160, 0.08);
+}
+
+.save-percentage.low {
+  color: #ffd0d7;
+  border-color: rgba(255, 79, 103, 0.25);
+  background: rgba(255, 79, 103, 0.08);
+}
+
+.save-percentage.empty {
+  color: var(--muted);
+  border-color: rgba(137, 191, 230, 0.12);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .hidden {
@@ -1135,6 +1216,11 @@ tbody tr:last-child td {
   .page-hero {
     gap: 24px;
   }
+
+  .grid.three,
+  .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 820px) {
@@ -1163,6 +1249,7 @@ tbody tr:last-child td {
   }
 
   .grid.two,
+  .grid.three,
   .dashboard,
   .stats-grid {
     grid-template-columns: 1fr;
@@ -1185,6 +1272,7 @@ tbody tr:last-child td {
   }
 
   .filters,
+  .goalie-filters,
   .team-filters,
   .player-row {
     grid-template-columns: 1fr;
@@ -1221,8 +1309,8 @@ tbody tr:last-child td {
     flex: 1;
     justify-content: center;
     min-width: 0;
-    padding: 0 9px;
-    font-size: 0.76rem;
+    padding: 0 6px;
+    font-size: 0.69rem;
   }
 
   .nav-icon {

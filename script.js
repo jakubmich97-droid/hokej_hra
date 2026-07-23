@@ -17,6 +17,7 @@ const els = {
   statusBox: document.querySelector("#statusBox"),
 
   playersCount: document.querySelector("#playersCount"),
+  goaliesCount: document.querySelector("#goaliesCount"),
   teamsCount: document.querySelector("#teamsCount"),
   activePlayersCount: document.querySelector("#activePlayersCount"),
 
@@ -49,7 +50,11 @@ async function loadAll() {
 }
 
 function render() {
-  els.playersCount.textContent = state.players.length;
+  const skaters = state.players.filter(player => player.position !== "G");
+  const goalies = state.players.filter(player => player.position === "G");
+
+  els.playersCount.textContent = skaters.length;
+  els.goaliesCount.textContent = goalies.length;
   els.teamsCount.textContent = state.teams.length;
   els.activePlayersCount.textContent = state.players.filter(player => player.active).length;
 
@@ -87,7 +92,7 @@ function renderTeams() {
 
 function renderTopPlayers() {
   const topPlayers = [...state.players]
-    .filter(player => player.active)
+    .filter(player => player.active && player.position !== "G")
     .sort((a, b) => Number(b.sort_rating) - Number(a.sort_rating))
     .slice(0, 8);
 
@@ -107,12 +112,14 @@ function renderTopPlayers() {
 }
 
 function renderPlayersTable() {
-  if (!state.players.length) {
+  const skaters = state.players.filter(player => player.position !== "G");
+
+  if (!skaters.length) {
     els.playersTable.innerHTML = `<tr><td colspan="10" class="muted">Zatím nejsou žádní hráči.</td></tr>`;
     return;
   }
 
-  els.playersTable.innerHTML = state.players.map(player => {
+  els.playersTable.innerHTML = skaters.map(player => {
     const age = CURRENT_SEASON - Number(player.birth_year);
 
     return `

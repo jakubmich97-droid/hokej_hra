@@ -23,8 +23,9 @@
     </div>
 
     <nav class="top-nav">
-        <a href="index.html" class="active">Dashboard</a>
-        <a href="players.html">Hráči</a>
+      <a href="index.html" class="active">Dashboard</a>
+      <a href="players.html">Hráči</a>
+      <a href="teams.html">Týmy</a>
     </nav>
     
     <button id="refreshBtn" class="btn secondary">Obnovit data</button>
@@ -51,50 +52,34 @@
     </section>
 
     <section class="grid two">
-    <div class="card">
-    <div class="section-head">
-        <h2>Hráči</h2>
-        <span class="pill">Player Database</span>
-    </div>
+      <div class="card">
+        <div class="section-head">
+          <h2>Hráči</h2>
+          <span class="pill">Player Database</span>
+        </div>
 
-    <p class="subtitle">
-        Správa hráčů byla přesunuta na samostatnou stránku.
-    </p>
+        <p class="subtitle">
+          Správa hráčů byla přesunuta na samostatnou stránku.
+        </p>
 
-    <a href="players.html" class="btn">
-        Otevřít správu hráčů
-    </a>
-</div>
+        <a href="players.html" class="btn">
+          Otevřít správu hráčů
+        </a>
+      </div>
 
       <div class="card">
         <div class="section-head">
-          <h2>Přidat tým</h2>
-          <span class="pill">League / Repre</span>
+          <h2>Týmy</h2>
+          <span class="pill">Team Database</span>
         </div>
 
-        <form id="teamForm" class="form">
-          <input name="name" placeholder="Název týmu" required />
-          <input name="short_name" placeholder="Zkratka, např. MWM" maxlength="8" required />
+        <p class="subtitle">
+          Přidávání týmů, filtrování a databáze klubů i reprezentací jsou na samostatné stránce.
+        </p>
 
-          <div class="row">
-            <select name="team_type" required>
-              <option value="league">Ligový tým</option>
-              <option value="national">Reprezentace</option>
-            </select>
-
-            <select name="age_category">
-              <option value="">Bez kategorie</option>
-              <option value="senior">Senior</option>
-              <option value="u21">U21</option>
-              <option value="u18">U18</option>
-            </select>
-          </div>
-
-          <div class="row">
-            <input name="country" placeholder="Země / národnost, např. Czechia" />
-            <button class="btn" type="submit">Uložit tým</button>
-          </div>
-        </form>
+        <a href="teams.html" class="btn">
+          Otevřít správu týmů
+        </a>
       </div>
     </section>
 

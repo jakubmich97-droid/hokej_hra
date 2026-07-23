@@ -20,8 +20,6 @@ const els = {
   teamsCount: document.querySelector("#teamsCount"),
   activePlayersCount: document.querySelector("#activePlayersCount"),
 
-   teamForm: document.querySelector("#teamForm"),
-
   teamsList: document.querySelector("#teamsList"),
   topPlayersList: document.querySelector("#topPlayersList"),
   playersTable: document.querySelector("#playersTable")
@@ -71,9 +69,17 @@ function renderTeams() {
     const details = [typeLabel, team.country, team.age_category].filter(Boolean).join(" · ");
 
     return `
-      <div class="item">
-        <strong>${escapeHtml(team.short_name)} — ${escapeHtml(team.name)}</strong>
-        <small>${escapeHtml(details)}</small>
+      <div class="item team-list-item">
+        <img
+          src="${getTeamLogo(team.short_name)}"
+          alt="Logo ${escapeHtml(team.name)}"
+          class="team-logo"
+          onerror="this.onerror=null;this.src='images/teams/default.svg'"
+        >
+        <div>
+          <strong>${escapeHtml(team.short_name)} — ${escapeHtml(team.name)}</strong>
+          <small>${escapeHtml(details)}</small>
+        </div>
       </div>
     `;
   }).join("");
@@ -139,34 +145,6 @@ els.refreshBtn.addEventListener("click", async () => {
   }
 });
 
-
-els.teamForm.addEventListener("submit", async event => {
-  event.preventDefault();
-
-  const form = new FormData(event.target);
-
-  const newTeam = {
-    name: String(form.get("name")).trim(),
-    short_name: String(form.get("short_name")).trim().toUpperCase(),
-    team_type: String(form.get("team_type")),
-    country: String(form.get("country") || "").trim() || null,
-    age_category: String(form.get("age_category") || "") || null
-  };
-
-  try {
-    setStatus("Ukládám tým...");
-    const { error } = await db.from("hockey_teams").insert(newTeam);
-    if (error) throw error;
-
-    event.target.reset();
-
-    await loadAll();
-    setStatus("Tým uložen.", "ok");
-  } catch (error) {
-    console.error(error);
-    setStatus(`Chyba při ukládání týmu: ${error.message}`, "error");
-  }
-});
 
 function getAgeModifier(age) {
   const modifiers = {
@@ -238,4 +216,17 @@ function renderCountry(countryCode) {
             ${countryCode}
         </span>
     `;
+}
+
+function getTeamLogo(shortName) {
+  const fileName = String(shortName || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return fileName
+    ? `images/teams/${fileName}.webp`
+    : "images/teams/default.svg";
 }

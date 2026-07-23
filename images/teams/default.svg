@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title">
+  <title id="title">Výchozí logo hokejového týmu</title>
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <path d="M80 10 137 31v43c0 38-23 62-57 76-34-14-57-38-57-76V31L80 10Z" fill="url(#shield)"/>
+  <path d="M80 23 125 40v34c0 30-17 50-45 63-28-13-45-33-45-63V40L80 23Z" fill="#07111f" opacity=".88"/>
+  <circle cx="80" cy="77" r="29" fill="#e5edf7"/>
+  <circle cx="80" cy="77" r="24" fill="#0f1d32"/>
+  <path d="M50 112h60" stroke="#38bdf8" stroke-width="8" stroke-linecap="round"/>
+  <path d="m103 45-39 65" stroke="#e5edf7" stroke-width="8" stroke-linecap="round"/>
+</svg>

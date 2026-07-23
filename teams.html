@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Týmy | Hockey Universe Simulator</title>
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+  <div class="ice-grid"></div>
+  <div class="puck"></div>
+
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Team database</p>
+      <h1>Týmy</h1>
+      <p class="subtitle">
+        Přidávání ligových týmů a reprezentací včetně jejich log.
+      </p>
+    </div>
+
+    <nav class="top-nav">
+      <a href="index.html">Dashboard</a>
+      <a href="players.html">Hráči</a>
+      <a href="teams.html" class="active">Týmy</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section id="statusBox" class="status muted">
+      Připraveno.
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Přidat tým</h2>
+        <span class="pill">League / Repre</span>
+      </div>
+
+      <form id="teamForm" class="form">
+        <div class="row">
+          <input name="name" placeholder="Název týmu" required />
+          <input
+            id="teamShortName"
+            name="short_name"
+            placeholder="Zkratka, např. KOM"
+            maxlength="8"
+            required
+          />
+        </div>
+
+        <div class="row">
+          <select name="team_type" required>
+            <option value="league">Ligový tým</option>
+            <option value="national">Reprezentace</option>
+          </select>
+
+          <select name="age_category">
+            <option value="">Bez kategorie</option>
+            <option value="senior">Senior</option>
+            <option value="u21">U21</option>
+            <option value="u18">U18</option>
+          </select>
+
+          <input name="country" placeholder="Země, např. Česko" />
+        </div>
+
+        <div class="logo-convention">
+          <img
+            id="logoPreview"
+            src="images/teams/default.svg"
+            alt="Náhled loga týmu"
+            class="team-logo large"
+          >
+          <div>
+            <p>Logo nahrajeme do repozitáře pod názvem odvozeným ze zkratky týmu:</p>
+            <code id="logoPath">images/teams/zkratka.webp</code>
+          </div>
+        </div>
+
+        <button class="btn" type="submit">Uložit tým</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Filtry</h2>
+        <span class="pill">Search</span>
+      </div>
+
+      <div class="team-filters">
+        <input id="filterTeamName" placeholder="Hledat podle názvu nebo zkratky" />
+
+        <select id="filterTeamType">
+          <option value="">Všechny typy</option>
+          <option value="league">Ligové týmy</option>
+          <option value="national">Reprezentace</option>
+        </select>
+
+        <select id="filterAgeCategory">
+          <option value="">Všechny kategorie</option>
+          <option value="senior">Senior</option>
+          <option value="u21">U21</option>
+          <option value="u18">U18</option>
+          <option value="none">Bez kategorie</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="card dashboard">
+      <div class="stat">
+        <span id="teamsCount">0</span>
+        <small>celkem týmů</small>
+      </div>
+
+      <div class="stat">
+        <span id="leagueTeamsCount">0</span>
+        <small>ligových týmů</small>
+      </div>
+
+      <div class="stat">
+        <span id="nationalTeamsCount">0</span>
+        <small>reprezentací</small>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Databáze týmů</h2>
+        <span class="pill live">Teams</span>
+      </div>
+
+      <div id="teamsGrid" class="team-grid"></div>
+    </section>
+  </main>
+
+  <script src="teams.js"></script>
+</body>
+</html>

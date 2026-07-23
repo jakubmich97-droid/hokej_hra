@@ -180,6 +180,55 @@
     </section>
   </main>
 
+  <dialog id="teamEditDialog" class="game-dialog">
+    <form id="teamEditForm" class="form dialog-form">
+      <div class="dialog-head">
+        <div>
+          <span class="section-kicker">Team editor</span>
+          <h2>Upravit tým</h2>
+        </div>
+        <button class="icon-btn" type="button" data-close-dialog aria-label="Zavřít">×</button>
+      </div>
+
+      <input name="id" type="hidden" />
+
+      <div class="row">
+        <label><span>Název týmu</span><input name="name" required /></label>
+        <label><span>Zkratka</span><input name="short_name" maxlength="8" required /></label>
+      </div>
+
+      <div class="row">
+        <label>
+          <span>Typ týmu</span>
+          <select name="team_type" required>
+            <option value="league">Ligový tým</option>
+            <option value="national">Reprezentace</option>
+          </select>
+        </label>
+        <label>
+          <span>Věková kategorie</span>
+          <select name="age_category">
+            <option value="">Bez kategorie</option>
+            <option value="senior">Senior</option>
+            <option value="u21">U21</option>
+            <option value="u18">U18</option>
+          </select>
+        </label>
+      </div>
+
+      <label><span>Země</span><input name="country" placeholder="Např. Česko" /></label>
+
+      <p class="dialog-note">
+        Při změně zkratky se změní i očekávaný název souboru loga v <code>images/teams</code>.
+      </p>
+
+      <div class="dialog-actions">
+        <button class="btn secondary" type="button" data-close-dialog>Zrušit</button>
+        <button class="btn" type="submit">Uložit změny</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="teams.js"></script>
 </body>
 </html>

@@ -198,18 +198,82 @@
               <th>Current</th>
               <th>Sort</th>
               <th>Stav</th>
+              <th>Akce</th>
             </tr>
           </thead>
 
           <tbody id="playersTable">
             <tr>
-              <td colspan="10">Načítám hráče...</td>
+              <td colspan="11">Načítám hráče...</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
   </main>
+
+  <dialog id="playerEditDialog" class="game-dialog">
+    <form id="playerEditForm" class="form dialog-form">
+      <div class="dialog-head">
+        <div>
+          <span class="section-kicker">Player editor</span>
+          <h2>Upravit hráče</h2>
+        </div>
+        <button class="icon-btn" type="button" data-close-dialog aria-label="Zavřít">×</button>
+      </div>
+
+      <input name="id" type="hidden" />
+
+      <div class="row">
+        <label><span>Jméno</span><input name="name" required /></label>
+        <label><span>Národnost</span><input name="nationality" maxlength="3" required /></label>
+      </div>
+
+      <div class="row">
+        <label>
+          <span>Rok narození</span>
+          <input name="birth_year" type="number" min="1950" max="2100" required />
+        </label>
+        <label>
+          <span>Pozice</span>
+          <select name="position" required>
+            <option value="C">C</option>
+            <option value="LK">LK</option>
+            <option value="PK">PK</option>
+            <option value="LO">LO</option>
+            <option value="PO">PO</option>
+            <option value="G">G</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="rating-fields">
+        <label><span>Base rating</span><input name="base_rating" type="number" step="0.000001" required /></label>
+        <label><span>Raw rating</span><input name="raw_rating" type="number" step="0.000001" required /></label>
+        <label><span>Current rating</span><input name="current_rating" type="number" step="0.000001" required /></label>
+        <label><span>Sort rating</span><input name="sort_rating" type="number" step="0.000001" required /></label>
+      </div>
+
+      <div class="row">
+        <label>
+          <span>Stav kariéry</span>
+          <select name="active" required>
+            <option value="true">Aktivní</option>
+            <option value="false">Důchod</option>
+          </select>
+        </label>
+        <label>
+          <span>Sezóna ukončení</span>
+          <input name="retired_season" type="number" min="1950" max="2100" placeholder="Pouze při důchodu" />
+        </label>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="btn secondary" type="button" data-close-dialog>Zrušit</button>
+        <button class="btn" type="submit">Uložit změny</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="players.js"></script>
 </body>

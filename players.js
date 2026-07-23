@@ -26,7 +26,9 @@ const els = {
   playersCount: document.querySelector("#playersCount"),
   activePlayersCount: document.querySelector("#activePlayersCount"),
   shownPlayersCount: document.querySelector("#shownPlayersCount"),
-  playersTable: document.querySelector("#playersTable")
+  playersTable: document.querySelector("#playersTable"),
+  playerEditDialog: document.querySelector("#playerEditDialog"),
+  playerEditForm: document.querySelector("#playerEditForm")
 };
 
 function setStatus(message, type = "muted") {
@@ -92,7 +94,7 @@ function renderPlayersTable() {
   if (!state.filteredPlayers.length) {
     els.playersTable.innerHTML = `
       <tr>
-        <td colspan="10">Nenalezen žádný hráč.</td>
+        <td colspan="11">Nenalezen žádný hráč.</td>
       </tr>
     `;
     return;
@@ -117,10 +119,88 @@ function renderPlayersTable() {
             ${player.active ? "Aktivní" : "Důchod"}
           </span>
         </td>
+        <td>
+          <button
+            class="edit-btn"
+            type="button"
+            data-edit-player="${escapeHtml(player.id)}"
+            aria-label="Upravit hráče ${escapeHtml(player.name)}"
+          >
+            Upravit
+          </button>
+        </td>
       </tr>
     `;
   }).join("");
 }
+
+els.playersTable.addEventListener("click", event => {
+  const button = event.target.closest("[data-edit-player]");
+  if (!button) return;
+
+  const player = state.players.find(item => String(item.id) === button.dataset.editPlayer);
+  if (!player) {
+    setStatus("Hráče se nepodařilo najít.", "error");
+    return;
+  }
+
+  fillPlayerEditForm(player);
+  els.playerEditDialog.showModal();
+});
+
+els.playerEditForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const form = new FormData(event.target);
+  const id = String(form.get("id"));
+  const active = form.get("active") === "true";
+  const retiredSeason = Number(form.get("retired_season")) || null;
+  const changes = {
+    name: String(form.get("name")).trim(),
+    nationality: String(form.get("nationality")).trim().toUpperCase(),
+    birth_year: Number(form.get("birth_year")),
+    position: String(form.get("position")),
+    base_rating: Number(form.get("base_rating")),
+    raw_rating: Number(form.get("raw_rating")),
+    current_rating: Number(form.get("current_rating")),
+    sort_rating: Number(form.get("sort_rating")),
+    active,
+    retired_season: active ? null : retiredSeason
+  };
+
+  if (!changes.name || changes.nationality.length !== 3) {
+    setStatus("Vyplň jméno a třípísmenný kód národnosti.", "error");
+    return;
+  }
+
+  try {
+    setStatus("Ukládám změny hráče...");
+
+    const { error } = await db
+      .from("hockey_players")
+      .update(changes)
+      .eq("id", id);
+
+    if (error) throw error;
+
+    els.playerEditDialog.close();
+    await loadPlayers();
+    setStatus(`Hráč ${changes.name} byl upraven.`, "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(`Chyba při úpravě hráče: ${error.message}`, "error");
+  }
+});
+
+els.playerEditDialog.addEventListener("click", event => {
+  if (event.target === els.playerEditDialog) {
+    els.playerEditDialog.close();
+  }
+});
+
+els.playerEditDialog.querySelectorAll("[data-close-dialog]").forEach(button => {
+  button.addEventListener("click", () => els.playerEditDialog.close());
+});
 
 els.playerBatchSetupForm.addEventListener("submit", event => {
   event.preventDefault();
@@ -233,6 +313,22 @@ function renderPlayerRows(count) {
       </select>
     </div>
   `).join("");
+}
+
+function fillPlayerEditForm(player) {
+  const form = els.playerEditForm.elements;
+
+  form.id.value = player.id;
+  form.name.value = player.name || "";
+  form.nationality.value = player.nationality || "";
+  form.birth_year.value = player.birth_year || "";
+  form.position.value = player.position || "C";
+  form.base_rating.value = player.base_rating ?? 0;
+  form.raw_rating.value = player.raw_rating ?? 0;
+  form.current_rating.value = player.current_rating ?? 0;
+  form.sort_rating.value = player.sort_rating ?? 0;
+  form.active.value = String(player.active);
+  form.retired_season.value = player.retired_season || "";
 }
 
 function generateUniqueSortRating(seed) {

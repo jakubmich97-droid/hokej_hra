@@ -22,7 +22,9 @@ const els = {
   teamsCount: document.querySelector("#teamsCount"),
   leagueTeamsCount: document.querySelector("#leagueTeamsCount"),
   nationalTeamsCount: document.querySelector("#nationalTeamsCount"),
-  teamsGrid: document.querySelector("#teamsGrid")
+  teamsGrid: document.querySelector("#teamsGrid"),
+  teamEditDialog: document.querySelector("#teamEditDialog"),
+  teamEditForm: document.querySelector("#teamEditForm")
 };
 
 function setStatus(message, type = "muted") {
@@ -101,10 +103,82 @@ function renderTeams() {
           </div>
         </div>
         <p>${escapeHtml(details)}</p>
+        <button
+          class="edit-btn"
+          type="button"
+          data-edit-team="${escapeHtml(team.id)}"
+          aria-label="Upravit tým ${escapeHtml(team.name)}"
+        >
+          Upravit tým
+        </button>
       </article>
     `;
   }).join("");
 }
+
+els.teamsGrid.addEventListener("click", event => {
+  const button = event.target.closest("[data-edit-team]");
+  if (!button) return;
+
+  const team = state.teams.find(item => String(item.id) === button.dataset.editTeam);
+  if (!team) {
+    setStatus("Tým se nepodařilo najít.", "error");
+    return;
+  }
+
+  fillTeamEditForm(team);
+  els.teamEditDialog.showModal();
+});
+
+els.teamEditForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const form = new FormData(event.target);
+  const id = String(form.get("id"));
+  const changes = {
+    name: String(form.get("name")).trim(),
+    short_name: String(form.get("short_name")).trim().toUpperCase(),
+    team_type: String(form.get("team_type")),
+    country: String(form.get("country") || "").trim() || null,
+    age_category: String(form.get("age_category") || "") || null
+  };
+
+  if (!changes.name || !changes.short_name) {
+    setStatus("Vyplň název a zkratku týmu.", "error");
+    return;
+  }
+
+  try {
+    setStatus("Ukládám změny týmu...");
+
+    const { error } = await db
+      .from("hockey_teams")
+      .update(changes)
+      .eq("id", id);
+
+    if (error) throw error;
+
+    els.teamEditDialog.close();
+    await loadTeams();
+    setStatus(
+      `Tým ${changes.name} byl upraven. Logo patří do ${getTeamLogo(changes.short_name)}.`,
+      "ok"
+    );
+  } catch (error) {
+    console.error(error);
+    setStatus(`Chyba při úpravě týmu: ${error.message}`, "error");
+  }
+});
+
+els.teamEditDialog.addEventListener("click", event => {
+  if (event.target === els.teamEditDialog) {
+    els.teamEditDialog.close();
+  }
+});
+
+els.teamEditDialog.querySelectorAll("[data-close-dialog]").forEach(button => {
+  button.addEventListener("click", () => els.teamEditDialog.close());
+});
 
 els.teamForm.addEventListener("submit", async event => {
   event.preventDefault();
@@ -163,6 +237,17 @@ function updateLogoPreview() {
     els.logoPreview.onerror = null;
     els.logoPreview.src = "images/teams/default.svg";
   };
+}
+
+function fillTeamEditForm(team) {
+  const form = els.teamEditForm.elements;
+
+  form.id.value = team.id;
+  form.name.value = team.name || "";
+  form.short_name.value = team.short_name || "";
+  form.team_type.value = team.team_type || "league";
+  form.age_category.value = team.age_category || "";
+  form.country.value = team.country || "";
 }
 
 function getTeamLogo(shortName) {

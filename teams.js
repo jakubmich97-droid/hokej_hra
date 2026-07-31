@@ -14,6 +14,7 @@ const els = {
   statusBox: document.querySelector("#statusBox"),
   teamForm: document.querySelector("#teamForm"),
   teamShortName: document.querySelector("#teamShortName"),
+  teamType: document.querySelector('#teamForm [name="team_type"]'),
   logoPreview: document.querySelector("#logoPreview"),
   logoPath: document.querySelector("#logoPath"),
 
@@ -170,9 +171,9 @@ function renderTeams() {
       <article class="team-card ${rosterStatus.complete ? "roster-complete" : "roster-incomplete"}">
         <div class="team-card-head">
           <img
-            src="${getTeamLogo(team.short_name)}"
-            alt="Logo ${escapeHtml(team.name)}"
-            class="team-logo large"
+            src="${getTeamVisualPath(team)}"
+            alt="${team.team_type === "national" ? "Vlajka" : "Logo"} ${escapeHtml(team.name)}"
+            class="team-logo large ${team.team_type === "national" ? "national-flag" : ""}"
             onerror="this.onerror=null;this.src='images/teams/default.svg'"
           >
           <div>
@@ -277,7 +278,7 @@ els.teamEditForm.addEventListener("submit", async event => {
     els.teamEditDialog.close();
     await loadTeams();
     setStatus(
-      `Tým ${changes.name} byl upraven. Logo patří do ${getTeamLogo(changes.short_name)}.`,
+      `Tým ${changes.name} byl upraven. Grafika: ${getTeamVisualPath(changes)}.`,
       "ok"
     );
   } catch (error) {
@@ -324,7 +325,7 @@ els.teamForm.addEventListener("submit", async event => {
     await loadTeams();
 
     setStatus(
-      `Tým uložen. Logo patří do ${getTeamLogo(shortName)}.`,
+      `Tým uložen. Grafika: ${getTeamVisualPath(newTeam)}.`,
       "ok"
     );
   } catch (error) {
@@ -343,12 +344,19 @@ els.teamForm.addEventListener("submit", async event => {
 });
 
 els.teamShortName.addEventListener("input", updateLogoPreview);
+els.teamType.addEventListener("change", updateLogoPreview);
 
 function updateLogoPreview() {
-  const logoPath = getTeamLogo(els.teamShortName.value);
+  const isNational = els.teamType.value === "national";
+  const logoPath = getTeamVisualPath({
+    short_name: els.teamShortName.value,
+    team_type: els.teamType.value
+  });
 
   els.logoPath.textContent = logoPath;
   els.logoPreview.src = logoPath;
+  els.logoPreview.alt = isNational ? "Náhled národní vlajky" : "Náhled loga týmu";
+  els.logoPreview.classList.toggle("national-flag", isNational);
   els.logoPreview.onerror = () => {
     els.logoPreview.onerror = null;
     els.logoPreview.src = "images/teams/default.svg";
@@ -377,6 +385,19 @@ function getTeamLogo(shortName) {
   return fileName
     ? `images/teams/${fileName}.webp`
     : "images/teams/default.svg";
+}
+
+function getNationalFlag(shortName) {
+  const countryCode = String(shortName || "").trim().toLowerCase();
+  return countryCode
+    ? `images/flags/${countryCode}.webp`
+    : "images/teams/default.svg";
+}
+
+function getTeamVisualPath(team) {
+  return team.team_type === "national"
+    ? getNationalFlag(team.short_name)
+    : getTeamLogo(team.short_name);
 }
 
 function getCategoryLabel(category) {

@@ -1615,6 +1615,16 @@ tbody tr:last-child td {
   border-radius: 18px 5px 18px 5px;
 }
 
+.team-logo.national-flag {
+  padding: 7px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.team-logo.large.national-flag {
+  padding: 10px;
+}
+
 .team-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

@@ -76,9 +76,9 @@ function renderTeams(teams) {
     <article class="team-card">
       <div class="team-card-head">
         <img
-          src="${getTeamLogo(team.short_name)}"
-          alt="Logo ${escapeHtml(team.name)}"
-          class="team-logo large"
+          src="${getNationalFlag(team.short_name)}"
+          alt="Vlajka ${escapeHtml(team.name)}"
+          class="team-logo large national-flag"
           onerror="this.onerror=null;this.src='images/teams/default.svg'"
         >
         <div>
@@ -95,15 +95,11 @@ function isMissingCompetitionColumns(error) {
   return /age_category|column/i.test(String(error?.message || ""));
 }
 
-function getTeamLogo(shortName) {
-  const fileName = String(shortName || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return fileName ? `images/teams/${fileName}.webp` : "images/teams/default.svg";
+function getNationalFlag(shortName) {
+  const countryCode = String(shortName || "").trim().toLowerCase();
+  return countryCode
+    ? `images/flags/${countryCode}.webp`
+    : "images/teams/default.svg";
 }
 
 function escapeHtml(value) {

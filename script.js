@@ -103,9 +103,9 @@ function renderTeams() {
     return `
       <div class="item team-list-item">
         <img
-          src="${getTeamLogo(team.short_name)}"
-          alt="Logo ${escapeHtml(team.name)}"
-          class="team-logo"
+          src="${getTeamVisualPath(team)}"
+          alt="${team.team_type === "national" ? "Vlajka" : "Logo"} ${escapeHtml(team.name)}"
+          class="team-logo ${team.team_type === "national" ? "national-flag" : ""}"
           onerror="this.onerror=null;this.src='images/teams/default.svg'"
         >
         <div>
@@ -287,4 +287,15 @@ function getTeamLogo(shortName) {
   return fileName
     ? `images/teams/${fileName}.webp`
     : "images/teams/default.svg";
+}
+
+function getTeamVisualPath(team) {
+  if (team.team_type === "national") {
+    const countryCode = String(team.short_name || "").trim().toLowerCase();
+    return countryCode
+      ? `images/flags/${countryCode}.webp`
+      : "images/teams/default.svg";
+  }
+
+  return getTeamLogo(team.short_name);
 }

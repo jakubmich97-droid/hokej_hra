@@ -131,21 +131,22 @@ function renderMatchesTable() {
   els.matchesTable.innerHTML = state.filteredMatches.map(match => {
     const homeTeam = teamsById.get(String(match.home_team_id));
     const awayTeam = teamsById.get(String(match.away_team_id));
+    const played = isMatchPlayed(match);
 
     return `
-      <tr class="${isMatchPlayed(match) ? "played-match" : ""}">
+      <tr class="${played ? "played-match" : ""}">
         <td>${renderCompetition(match)}</td>
         <td><strong>${match.round_number ?? "—"}</strong></td>
         <td>${renderTeamName(homeTeam)}</td>
         <td>${renderTeamName(awayTeam)}</td>
-        <td>${formatOptionalNumber(match.home_attack, 3)}</td>
-        <td>${formatOptionalNumber(match.home_defense, 3)}</td>
-        <td>${formatOptionalNumber(match.away_attack, 3)}</td>
-        <td>${formatOptionalNumber(match.away_defense, 3)}</td>
-        <td>${formatOptionalNumber(match.home_shots, 0)}</td>
-        <td>${formatOptionalNumber(match.away_shots, 0)}</td>
-        <td>${formatOptionalNumber(match.home_goals, 0)}</td>
-        <td>${formatOptionalNumber(match.away_goals, 0)}</td>
+        <td>${played ? formatOptionalNumber(match.home_attack, 3) : "—"}</td>
+        <td>${played ? formatOptionalNumber(match.home_defense, 3) : "—"}</td>
+        <td>${played ? formatOptionalNumber(match.away_attack, 3) : "—"}</td>
+        <td>${played ? formatOptionalNumber(match.away_defense, 3) : "—"}</td>
+        <td>${played ? formatOptionalNumber(match.home_shots, 0) : "—"}</td>
+        <td>${played ? formatOptionalNumber(match.away_shots, 0) : "—"}</td>
+        <td>${played ? formatOptionalNumber(match.home_goals, 0) : "—"}</td>
+        <td>${played ? formatOptionalNumber(match.away_goals, 0) : "—"}</td>
         <td>${renderResultCode(match.home_result)}</td>
         <td>${renderResultCode(match.away_result)}</td>
       </tr>
@@ -237,10 +238,10 @@ async function generateSchedule(type, category) {
     home_defense: null,
     away_attack: null,
     away_defense: null,
-    home_shots: null,
-    away_shots: null,
-    home_goals: null,
-    away_goals: null,
+    home_shots: 0,
+    away_shots: 0,
+    home_goals: 0,
+    away_goals: 0,
     home_result: null,
     away_result: null,
     played_at: null
@@ -272,9 +273,7 @@ async function generateSchedule(type, category) {
 }
 
 function isMatchPlayed(match) {
-  return Boolean(match.played_at)
-    || (match.home_goals !== null && match.home_goals !== undefined
-      && match.away_goals !== null && match.away_goals !== undefined);
+  return Boolean(match.played_at || match.home_result || match.away_result);
 }
 
 function getUnplayedFilteredMatches() {

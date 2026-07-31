@@ -12,7 +12,8 @@ const state = {
   statsRange: "season",
   statsMap: new Map(),
   rosterSchemaReady: false,
-  pendingNationality: ""
+  pendingNationality: "",
+  pendingBirthInputMode: "year"
 };
 
 const els = {
@@ -264,6 +265,7 @@ els.goalieBatchSetupForm.addEventListener("submit", event => {
   const form = new FormData(event.target);
   const nationality = String(form.get("nationality")).trim().toUpperCase();
   const count = Number(form.get("count"));
+  const birthInputMode = String(form.get("birth_input_mode"));
 
   if (!nationality || count < 1) {
     setStatus("Vyber národnost a počet brankářů.", "error");
@@ -271,9 +273,15 @@ els.goalieBatchSetupForm.addEventListener("submit", event => {
   }
 
   state.pendingNationality = nationality;
+  state.pendingBirthInputMode = birthInputMode;
   renderGoalieRows(count);
   els.goalieBatchForm.classList.remove("hidden");
-  setStatus(`Připraveno ${count} řádků pro národnost ${nationality}.`, "ok");
+  setStatus(
+    `Připraveno ${count} řádků pro národnost ${nationality} · ${
+      birthInputMode === "age" ? "zadání věku" : "zadání roku narození"
+    }.`,
+    "ok"
+  );
 });
 
 els.goalieBatchForm.addEventListener("submit", async event => {
@@ -283,9 +291,12 @@ els.goalieBatchForm.addEventListener("submit", async event => {
     const rows = [...els.goalieRows.querySelectorAll(".player-row")];
     const newGoalies = rows.map((row, index) => {
       const name = row.querySelector('[name="goalie_name"]').value.trim();
-      const birthYear = Number(row.querySelector('[name="birth_year"]').value);
+      const birthValue = Number(row.querySelector('[name="birth_value"]').value);
+      const birthYear = state.pendingBirthInputMode === "age"
+        ? CURRENT_SEASON - birthValue
+        : birthValue;
 
-      if (!name || !birthYear) {
+      if (!name || !birthValue) {
         throw new Error(`Řádek ${index + 1} není kompletně vyplněný.`);
       }
 
@@ -468,16 +479,21 @@ els.assignGoaliesBtn.addEventListener("click", async () => {
 });
 
 function renderGoalieRows(count) {
+  const usesAge = state.pendingBirthInputMode === "age";
+  const birthValue = usesAge ? 20 : CURRENT_SEASON - 20;
+
   els.goalieRows.innerHTML = Array.from({ length: count }, (_, index) => `
     <div class="player-row goalie-row">
       <div class="player-row-label">Brankář ${index + 1}</div>
       <input name="goalie_name" placeholder="Jméno brankáře" required />
       <input
-        name="birth_year"
+        name="birth_value"
         type="number"
-        min="1950"
-        max="2100"
-        value="2000"
+        min="${usesAge ? 1 : 1900}"
+        max="${usesAge ? 100 : CURRENT_SEASON}"
+        value="${birthValue}"
+        placeholder="${usesAge ? "Věk v letech" : "Rok narození"}"
+        aria-label="${usesAge ? "Aktuální věk brankáře" : "Rok narození brankáře"}"
         required
       />
       <div class="position-lock">G · Brankář</div>

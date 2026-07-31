@@ -15,7 +15,8 @@ const state = {
   statsMap: new Map(),
   rankings: new Map(),
   rosterSchemaReady: false,
-  pendingNationality: ""
+  pendingNationality: "",
+  pendingBirthInputMode: "year"
 };
 
 const els = {
@@ -513,6 +514,7 @@ els.playerBatchSetupForm.addEventListener("submit", event => {
   const form = new FormData(event.target);
   const nationality = String(form.get("nationality")).trim();
   const count = Number(form.get("count"));
+  const birthInputMode = String(form.get("birth_input_mode"));
 
   if (!nationality || count < 1) {
     setStatus("Vyplň národnost a počet hráčů.", "error");
@@ -520,10 +522,16 @@ els.playerBatchSetupForm.addEventListener("submit", event => {
   }
 
   state.pendingNationality = nationality;
+  state.pendingBirthInputMode = birthInputMode;
   renderPlayerRows(count);
   els.playerBatchForm.classList.remove("hidden");
 
-  setStatus(`Připraveno ${count} řádků pro národnost ${nationality}.`, "ok");
+  setStatus(
+    `Připraveno ${count} řádků pro národnost ${nationality} · ${
+      birthInputMode === "age" ? "zadání věku" : "zadání roku narození"
+    }.`,
+    "ok"
+  );
 });
 
 els.playerBatchForm.addEventListener("submit", async event => {
@@ -534,10 +542,13 @@ els.playerBatchForm.addEventListener("submit", async event => {
 
     const newPlayers = rows.map((row, index) => {
       const name = row.querySelector('[name="player_name"]').value.trim();
-      const birthYear = Number(row.querySelector('[name="birth_year"]').value);
+      const birthValue = Number(row.querySelector('[name="birth_value"]').value);
+      const birthYear = state.pendingBirthInputMode === "age"
+        ? CURRENT_SEASON - birthValue
+        : birthValue;
       const position = row.querySelector('[name="position"]').value;
 
-      if (!name || !birthYear || !position) {
+      if (!name || !birthValue || !position) {
         throw new Error(`Řádek ${index + 1} není kompletně vyplněný.`);
       }
 
@@ -595,6 +606,8 @@ els.playerBatchForm.addEventListener("submit", async event => {
 
 function renderPlayerRows(count) {
   const positions = ["C", "LK", "PK", "LO", "PO"];
+  const usesAge = state.pendingBirthInputMode === "age";
+  const birthValue = usesAge ? 20 : CURRENT_SEASON - 20;
 
   els.playerRows.innerHTML = Array.from({ length: count }, (_, index) => `
     <div class="player-row">
@@ -603,11 +616,13 @@ function renderPlayerRows(count) {
       <input name="player_name" placeholder="Jméno hráče" required>
 
       <input
-        name="birth_year"
+        name="birth_value"
         type="number"
-        min="1950"
-        max="2100"
-        value="2000"
+        min="${usesAge ? 1 : 1900}"
+        max="${usesAge ? 100 : CURRENT_SEASON}"
+        value="${birthValue}"
+        placeholder="${usesAge ? "Věk v letech" : "Rok narození"}"
+        aria-label="${usesAge ? "Aktuální věk hráče" : "Rok narození hráče"}"
         required
       >
 

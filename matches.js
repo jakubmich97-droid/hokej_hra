@@ -11,6 +11,19 @@ const BASE_SHOTS = 28;
 const SHOT_STRENGTH_MULTIPLIER = 18;
 const HOME_SHOT_ADVANTAGE = 1.5;
 const SKATER_POSITIONS = ["C", "LK", "PK", "LO", "PO"];
+const SKATER_RATING_WEIGHTS = {
+  goals: 0.24,
+  assists: 0.2,
+  games: 0.11,
+  pointsPerGame: 0.4,
+  initial: 0.05
+};
+const GOALIE_RATING_WEIGHTS = {
+  savePercentage: 0.5,
+  goalsAgainstAverage: -0.28,
+  games: 0.17,
+  initial: 0.05
+};
 
 const state = {
   teams: [],
@@ -72,7 +85,7 @@ async function loadMatches() {
 
   state.teams = teamsResponse.data || [];
   state.players = await initializeMissingRatings(playersResponse.data || []);
-  state.matches = sortMatches(matchesResponse.data || []);
+  state.matches = sortMatches((matchesResponse.data || []).map(normalizePlayedMatchResult));
   state.schemaReady = !schemaResponse.error;
 
   els.generateButtons.forEach(button => {
@@ -620,7 +633,7 @@ async function recalculateAllRatings() {
         initial: Number(player.base_rating)
       };
     },
-    { goals: 0.22, assists: 0.18, games: 0.1, pointsPerGame: 0.35, initial: 0.15 }
+    SKATER_RATING_WEIGHTS
   );
   const goalieUpdates = calculateRankedRatings(
     players.filter(player => player.position === "G"),
@@ -637,7 +650,7 @@ async function recalculateAllRatings() {
         initial: Number(player.base_rating)
       };
     },
-    { savePercentage: 0.45, goalsAgainstAverage: -0.25, games: 0.15, initial: 0.15 }
+    GOALIE_RATING_WEIGHTS
   );
 
   const updates = [...skaterUpdates, ...goalieUpdates];
@@ -816,11 +829,13 @@ function simulateMatch(homeLineup, awayLineup, averageGoalieRating) {
       awayResult = "VP";
     }
   } else if (homeGoals > awayGoals) {
-    homeResult = "V";
-    awayResult = "P";
+    const oneGoalDifference = homeGoals - awayGoals === 1;
+    homeResult = oneGoalDifference ? "VP" : "V";
+    awayResult = oneGoalDifference ? "PP" : "P";
   } else {
-    homeResult = "P";
-    awayResult = "V";
+    const oneGoalDifference = awayGoals - homeGoals === 1;
+    homeResult = oneGoalDifference ? "PP" : "P";
+    awayResult = oneGoalDifference ? "VP" : "V";
   }
 
   return {
@@ -941,6 +956,25 @@ function sortMatches(matches) {
 
     return Number(first.round_number || 0) - Number(second.round_number || 0);
   });
+}
+
+function normalizePlayedMatchResult(match) {
+  if (!isMatchPlayed(match)) return match;
+  const homeGoals = Number(match.home_goals || 0);
+  const awayGoals = Number(match.away_goals || 0);
+  const difference = homeGoals - awayGoals;
+  if (difference === 0) return match;
+
+  const oneGoalDifference = Math.abs(difference) === 1;
+  return {
+    ...match,
+    home_result: difference > 0
+      ? (oneGoalDifference ? "VP" : "V")
+      : (oneGoalDifference ? "PP" : "P"),
+    away_result: difference > 0
+      ? (oneGoalDifference ? "PP" : "P")
+      : (oneGoalDifference ? "VP" : "V")
+  };
 }
 
 function setGeneratorBusy(isBusy) {

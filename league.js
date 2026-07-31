@@ -74,18 +74,19 @@ function calculateStandings(teams, matches) {
   }]));
 
   matches.filter(isPlayedLeagueMatch).forEach(match => {
+    const results = getEffectiveResultCodes(match);
     applyMatchToStanding(
       standings.get(String(match.home_team_id)),
       match.home_goals,
       match.away_goals,
-      match.home_result,
+      results.home,
       match
     );
     applyMatchToStanding(
       standings.get(String(match.away_team_id)),
       match.away_goals,
       match.home_goals,
-      match.away_result,
+      results.away,
       match
     );
   });
@@ -97,6 +98,19 @@ function calculateStandings(teams, matches) {
     || second.wins - first.wins
     || String(first.team.name).localeCompare(String(second.team.name), "cs")
   );
+}
+
+function getEffectiveResultCodes(match) {
+  const difference = Number(match.home_goals || 0) - Number(match.away_goals || 0);
+  const oneGoalDifference = Math.abs(difference) === 1;
+  return {
+    home: difference > 0
+      ? (oneGoalDifference ? "VP" : "V")
+      : (oneGoalDifference ? "PP" : "P"),
+    away: difference > 0
+      ? (oneGoalDifference ? "PP" : "P")
+      : (oneGoalDifference ? "VP" : "V")
+  };
 }
 
 function isPlayedLeagueMatch(match) {

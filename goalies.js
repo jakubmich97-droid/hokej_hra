@@ -6,10 +6,12 @@ const CURRENT_SEASON = HockeySeason.getCurrentSeason();
 
 const state = {
   goalies: [],
+  teams: [],
   filteredGoalies: [],
   statsRows: [],
   statsRange: "season",
   statsMap: new Map(),
+  rosterSchemaReady: false,
   pendingNationality: ""
 };
 
@@ -28,7 +30,8 @@ const els = {
   goalieEditDialog: document.querySelector("#goalieEditDialog"),
   goalieEditForm: document.querySelector("#goalieEditForm"),
   goalieStatsKicker: document.querySelector("#goalieStatsKicker"),
-  statsRangeButtons: [...document.querySelectorAll("[data-stats-range]")]
+  statsRangeButtons: [...document.querySelectorAll("[data-stats-range]")],
+  assignGoaliesBtn: document.querySelector("#assignGoaliesBtn")
 };
 
 function setStatus(message, type = "muted") {
@@ -39,7 +42,7 @@ function setStatus(message, type = "muted") {
 async function loadGoalies() {
   setStatus("Načítám brankáře a sezónní statistiky...");
 
-  const [goaliesResponse, statsResponse] = await Promise.all([
+  const [goaliesResponse, statsResponse, teamsResponse, rosterSchemaResponse] = await Promise.all([
     db
       .from("hockey_players")
       .select("*")
@@ -47,7 +50,16 @@ async function loadGoalies() {
       .order("sort_rating", { ascending: false }),
     db
       .from("hockey_goalie_stats_season")
-      .select("player_id, scope, season, games, shots_against, goals_against, save_percentage")
+      .select("player_id, scope, season, games, shots_against, goals_against, save_percentage"),
+    db
+      .from("hockey_teams")
+      .select("*")
+      .eq("team_type", "league")
+      .order("name", { ascending: true }),
+    db
+      .from("hockey_players")
+      .select("id, team_id")
+      .limit(1)
   ]);
 
   if (goaliesResponse.error) {
@@ -56,8 +68,23 @@ async function loadGoalies() {
   }
 
   state.goalies = goaliesResponse.data || [];
+  state.teams = teamsResponse.data || [];
   state.statsRows = statsResponse.data || [];
+  state.rosterSchemaReady = !rosterSchemaResponse.error;
   applyFilters();
+
+  if (teamsResponse.error) {
+    setStatus(`Brankáři načteni, ale týmy se nepodařilo načíst: ${teamsResponse.error.message}`, "error");
+    return;
+  }
+
+  if (!state.rosterSchemaReady) {
+    setStatus(
+      "Pro práci se soupiskami spusť v Supabase soubor supabase-hockey-rosters-extension.sql.",
+      "error"
+    );
+    return;
+  }
 
   if (statsResponse.error) {
     setStatus(
@@ -122,13 +149,14 @@ function render() {
   els.goalieStatsKicker.textContent = state.statsRange === "season"
     ? `Crease roster · Season ${CURRENT_SEASON}`
     : "Crease roster · Total";
+  setRosterButtonBusy(false);
   renderGoaliesTable();
 }
 
 function renderGoaliesTable() {
   if (!state.filteredGoalies.length) {
     els.goaliesTable.innerHTML = `
-      <tr><td colspan="12">Nenalezen žádný brankář.</td></tr>
+      <tr><td colspan="14">Nenalezen žádný brankář.</td></tr>
     `;
     return;
   }
@@ -150,6 +178,8 @@ function renderGoaliesTable() {
         <td>${renderCountry(goalie.nationality)}</td>
         <td>${goalie.birth_year}</td>
         <td>${age}</td>
+        <td>G</td>
+        <td>${renderGoalieTeam(goalie.team_id)}</td>
         <td>${formatNumber(goalie.base_rating, 6)}</td>
         <td>${formatNumber(goalie.current_rating, 6)}</td>
         <td>${stats.games}</td>
@@ -182,6 +212,50 @@ function renderGoaliesTable() {
 
 function getStatsRangeLabel() {
   return state.statsRange === "season" ? `sezóna ${CURRENT_SEASON}` : "Total";
+}
+
+function renderGoalieTeam(teamId) {
+  const team = state.teams.find(item => String(item.id) === String(teamId));
+
+  if (!team) {
+    return `<span class="tag free-agent">Volný</span>`;
+  }
+
+  return `
+    <span class="roster-team">
+      <img
+        src="${getTeamLogo(team.short_name)}"
+        alt=""
+        class="team-logo"
+        onerror="this.onerror=null;this.src='images/teams/default.svg'"
+      >
+      ${escapeHtml(team.short_name || team.name)}
+    </span>
+  `;
+}
+
+function populateTeamSelect(select, selectedTeamId) {
+  select.innerHTML = [
+    `<option value="">Volný</option>`,
+    ...state.teams.map(team => `
+      <option value="${escapeHtml(team.id)}">${escapeHtml(team.name)}</option>
+    `)
+  ].join("");
+  select.value = selectedTeamId || "";
+  select.disabled = !state.rosterSchemaReady;
+}
+
+function setRosterButtonBusy(busy) {
+  els.assignGoaliesBtn.disabled = busy || !state.rosterSchemaReady;
+  els.assignGoaliesBtn.title = state.rosterSchemaReady
+    ? ""
+    : "Nejdřív spusť SQL rozšíření soupisek v Supabase.";
+}
+
+function compareGoaliesByRating(first, second) {
+  return Number(second.current_rating || 0) - Number(first.current_rating || 0)
+    || Number(second.sort_rating || 0) - Number(first.sort_rating || 0)
+    || String(first.name).localeCompare(String(second.name), "cs");
 }
 
 els.goalieBatchSetupForm.addEventListener("submit", event => {
@@ -281,7 +355,10 @@ els.goalieEditForm.addEventListener("submit", async event => {
     current_rating: Number(form.get("current_rating")),
     sort_rating: Number(form.get("sort_rating")),
     active,
-    retired_season: active ? null : retiredSeason
+    retired_season: active ? null : retiredSeason,
+    ...(state.rosterSchemaReady
+      ? { team_id: active ? String(form.get("team_id") || "") || null : null }
+      : {})
   };
 
   if (!changes.name || changes.nationality.length !== 3) {
@@ -338,6 +415,58 @@ els.statsRangeButtons.forEach(button => {
   });
 });
 
+els.assignGoaliesBtn.addEventListener("click", async () => {
+  if (!state.rosterSchemaReady) return;
+
+  const occupiedTeamIds = new Set(
+    state.goalies
+      .filter(goalie => goalie.active && goalie.team_id)
+      .map(goalie => String(goalie.team_id))
+  );
+  const freeGoalies = state.goalies
+    .filter(goalie => goalie.active && !goalie.team_id)
+    .sort(compareGoaliesByRating);
+  const assignments = [];
+
+  state.teams.forEach(team => {
+    if (occupiedTeamIds.has(String(team.id))) return;
+
+    const goalie = freeGoalies.shift();
+    if (!goalie) return;
+
+    assignments.push({ goalie, team });
+    occupiedTeamIds.add(String(team.id));
+  });
+
+  if (!assignments.length) {
+    setStatus("Není koho přiřadit nebo všechny týmy už aktivního brankáře mají.", "muted");
+    return;
+  }
+
+  try {
+    setRosterButtonBusy(true);
+    setStatus(`Přiřazuji brankáře týmům: ${assignments.length}...`);
+
+    const responses = await Promise.all(assignments.map(({ goalie, team }) =>
+      db
+        .from("hockey_players")
+        .update({ team_id: team.id })
+        .eq("id", goalie.id)
+    ));
+    const failedResponse = responses.find(response => response.error);
+    if (failedResponse?.error) throw failedResponse.error;
+
+    await loadGoalies();
+    setStatus(`K týmům bylo přiřazeno brankářů: ${assignments.length}.`, "ok");
+  } catch (error) {
+    console.error(error);
+    await loadGoalies();
+    setStatus(`Chyba při přiřazování brankářů: ${error.message}`, "error");
+  } finally {
+    setRosterButtonBusy(false);
+  }
+});
+
 function renderGoalieRows(count) {
   els.goalieRows.innerHTML = Array.from({ length: count }, (_, index) => `
     <div class="player-row goalie-row">
@@ -363,6 +492,7 @@ function fillGoalieEditForm(goalie) {
   form.name.value = goalie.name || "";
   form.nationality.value = goalie.nationality || "";
   form.birth_year.value = goalie.birth_year || "";
+  populateTeamSelect(form.team_id, goalie.team_id);
   form.base_rating.value = goalie.base_rating ?? 0;
   form.raw_rating.value = goalie.raw_rating ?? 0;
   form.current_rating.value = goalie.current_rating ?? 0;
@@ -418,6 +548,17 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function getTeamLogo(shortName) {
+  const fileName = String(shortName || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return fileName ? `images/teams/${fileName}.webp` : "images/teams/default.svg";
 }
 
 function getFlag(countryCode) {

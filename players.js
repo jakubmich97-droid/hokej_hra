@@ -4,14 +4,17 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const CURRENT_SEASON = HockeySeason.getCurrentSeason();
+const SKATER_POSITIONS = ["C", "LK", "PK", "LO", "PO"];
 
 const state = {
   players: [],
+  teams: [],
   filteredPlayers: [],
   statsRows: [],
   statsRange: "season",
   statsMap: new Map(),
   rankings: new Map(),
+  rosterSchemaReady: false,
   pendingNationality: ""
 };
 
@@ -34,7 +37,9 @@ const els = {
   playerEditDialog: document.querySelector("#playerEditDialog"),
   playerEditForm: document.querySelector("#playerEditForm"),
   playerStatsKicker: document.querySelector("#playerStatsKicker"),
-  statsRangeButtons: [...document.querySelectorAll("[data-stats-range]")]
+  statsRangeButtons: [...document.querySelectorAll("[data-stats-range]")],
+  releaseWeakestPlayersBtn: document.querySelector("#releaseWeakestPlayersBtn"),
+  assignPlayersBtn: document.querySelector("#assignPlayersBtn")
 };
 
 function setStatus(message, type = "muted") {
@@ -45,7 +50,7 @@ function setStatus(message, type = "muted") {
 async function loadPlayers() {
   setStatus("Načítám hráče a statistiky...");
 
-  const [playersResponse, statsResponse] = await Promise.all([
+  const [playersResponse, statsResponse, teamsResponse, rosterSchemaResponse] = await Promise.all([
     db
       .from("hockey_players")
       .select("*")
@@ -53,7 +58,16 @@ async function loadPlayers() {
       .order("sort_rating", { ascending: false }),
     db
       .from("hockey_player_stats_season")
-      .select("player_id, scope, season, games, goals, assists, shots, points, goals_per_game")
+      .select("player_id, scope, season, games, goals, assists, shots, points, goals_per_game"),
+    db
+      .from("hockey_teams")
+      .select("*")
+      .eq("team_type", "league")
+      .order("name", { ascending: true }),
+    db
+      .from("hockey_players")
+      .select("id, team_id")
+      .limit(1)
   ]);
 
   if (playersResponse.error) {
@@ -62,8 +76,23 @@ async function loadPlayers() {
   }
 
   state.players = playersResponse.data || [];
+  state.teams = teamsResponse.data || [];
   state.statsRows = statsResponse.data || [];
+  state.rosterSchemaReady = !rosterSchemaResponse.error;
   applyFilters();
+
+  if (teamsResponse.error) {
+    setStatus(`Hráči načteni, ale týmy se nepodařilo načíst: ${teamsResponse.error.message}`, "error");
+    return;
+  }
+
+  if (!state.rosterSchemaReady) {
+    setStatus(
+      "Pro práci se soupiskami spusť v Supabase soubor supabase-hockey-rosters-extension.sql.",
+      "error"
+    );
+    return;
+  }
 
   if (statsResponse.error) {
     setStatus(
@@ -113,6 +142,7 @@ function render() {
   els.playerStatsKicker.textContent = state.statsRange === "season"
     ? `Active roster · Season ${CURRENT_SEASON}`
     : "Active roster · Total";
+  setRosterButtonsBusy(false);
 
   renderPlayersTable();
 }
@@ -121,7 +151,7 @@ function renderPlayersTable() {
   if (!state.filteredPlayers.length) {
     els.playersTable.innerHTML = `
       <tr>
-        <td colspan="13">Nenalezen žádný hráč.</td>
+        <td colspan="14">Nenalezen žádný hráč.</td>
       </tr>
     `;
     return;
@@ -146,6 +176,7 @@ function renderPlayersTable() {
         <td>${player.birth_year}</td>
         <td>${age}</td>
         <td>${escapeHtml(player.position)}</td>
+        <td>${renderPlayerTeam(player.team_id)}</td>
         <td>${stats.games}</td>
         <td>${stats.goals}</td>
         <td>${stats.assists}</td>
@@ -240,6 +271,58 @@ function getStatsRangeLabel() {
   return state.statsRange === "season" ? `sezóna ${CURRENT_SEASON}` : "Total";
 }
 
+function renderPlayerTeam(teamId) {
+  const team = state.teams.find(item => String(item.id) === String(teamId));
+
+  if (!team) {
+    return `<span class="tag free-agent">Volný</span>`;
+  }
+
+  return `
+    <span class="roster-team">
+      <img
+        src="${getTeamLogo(team.short_name)}"
+        alt=""
+        class="team-logo"
+        onerror="this.onerror=null;this.src='images/teams/default.svg'"
+      >
+      ${escapeHtml(team.short_name || team.name)}
+    </span>
+  `;
+}
+
+function populateTeamSelect(select, selectedTeamId) {
+  select.innerHTML = [
+    `<option value="">Volný</option>`,
+    ...state.teams.map(team => `
+      <option value="${escapeHtml(team.id)}">${escapeHtml(team.name)}</option>
+    `)
+  ].join("");
+  select.value = selectedTeamId || "";
+  select.disabled = !state.rosterSchemaReady;
+}
+
+function setRosterButtonsBusy(busy) {
+  const disabled = busy || !state.rosterSchemaReady;
+  els.releaseWeakestPlayersBtn.disabled = disabled;
+  els.assignPlayersBtn.disabled = disabled;
+
+  if (!state.rosterSchemaReady) {
+    const title = "Nejdřív spusť SQL rozšíření soupisek v Supabase.";
+    els.releaseWeakestPlayersBtn.title = title;
+    els.assignPlayersBtn.title = title;
+  } else {
+    els.releaseWeakestPlayersBtn.title = "";
+    els.assignPlayersBtn.title = "";
+  }
+}
+
+function comparePlayersByRating(first, second) {
+  return Number(second.current_rating || 0) - Number(first.current_rating || 0)
+    || Number(second.sort_rating || 0) - Number(first.sort_rating || 0)
+    || String(first.name).localeCompare(String(second.name), "cs");
+}
+
 els.playersTable.addEventListener("click", event => {
   const button = event.target.closest("[data-edit-player]");
   if (!button) return;
@@ -271,7 +354,10 @@ els.playerEditForm.addEventListener("submit", async event => {
     current_rating: Number(form.get("current_rating")),
     sort_rating: Number(form.get("sort_rating")),
     active,
-    retired_season: active ? null : retiredSeason
+    retired_season: active ? null : retiredSeason,
+    ...(state.rosterSchemaReady
+      ? { team_id: active ? String(form.get("team_id") || "") || null : null }
+      : {})
   };
 
   if (!changes.name || changes.nationality.length !== 3) {
@@ -317,6 +403,108 @@ els.statsRangeButtons.forEach(button => {
     render();
     setStatus(`Zobrazeny statistiky: ${getStatsRangeLabel()}.`, "ok");
   });
+});
+
+els.releaseWeakestPlayersBtn.addEventListener("click", async () => {
+  if (!state.rosterSchemaReady) return;
+
+  const leagueTeamIds = new Set(state.teams.map(team => String(team.id)));
+  const weakestPlayers = state.teams
+    .map(team => state.players
+      .filter(player =>
+        player.active
+        && String(player.team_id) === String(team.id)
+        && leagueTeamIds.has(String(player.team_id))
+      )
+      .sort((first, second) => comparePlayersByRating(second, first))[0]
+    )
+    .filter(Boolean);
+
+  if (!weakestPlayers.length) {
+    setStatus("V ligových týmech není žádný aktivní hráč k propuštění.", "muted");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Propustit nejslabšího hráče z každého obsazeného týmu? Celkem: ${weakestPlayers.length}.`
+  );
+  if (!confirmed) return;
+
+  try {
+    setRosterButtonsBusy(true);
+    setStatus(`Propouštím hráče: ${weakestPlayers.length}...`);
+
+    const { error } = await db
+      .from("hockey_players")
+      .update({ team_id: null })
+      .in("id", weakestPlayers.map(player => player.id));
+
+    if (error) throw error;
+
+    await loadPlayers();
+    setStatus(`Na volnou nohu bylo propuštěno hráčů: ${weakestPlayers.length}.`, "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(`Chyba při propouštění hráčů: ${error.message}`, "error");
+  } finally {
+    setRosterButtonsBusy(false);
+  }
+});
+
+els.assignPlayersBtn.addEventListener("click", async () => {
+  if (!state.rosterSchemaReady) return;
+
+  const freePlayers = state.players
+    .filter(player => player.active && !player.team_id)
+    .sort(comparePlayersByRating);
+  const assignments = [];
+
+  state.teams.forEach(team => {
+    const occupiedPositions = new Set(
+      state.players
+        .filter(player => player.active && String(player.team_id) === String(team.id))
+        .map(player => player.position)
+    );
+
+    SKATER_POSITIONS.forEach(position => {
+      if (occupiedPositions.has(position)) return;
+
+      const playerIndex = freePlayers.findIndex(player => player.position === position);
+      if (playerIndex < 0) return;
+
+      const [player] = freePlayers.splice(playerIndex, 1);
+      assignments.push({ player, team });
+      occupiedPositions.add(position);
+    });
+  });
+
+  if (!assignments.length) {
+    setStatus("Není koho přiřadit nebo žádnému týmu nechybí dostupná pozice.", "muted");
+    return;
+  }
+
+  try {
+    setRosterButtonsBusy(true);
+    setStatus(`Přiřazuji hráče na chybějící pozice: ${assignments.length}...`);
+
+    const responses = await Promise.all(assignments.map(({ player, team }) =>
+      db
+        .from("hockey_players")
+        .update({ team_id: team.id })
+        .eq("id", player.id)
+    ));
+    const failedResponse = responses.find(response => response.error);
+    if (failedResponse?.error) throw failedResponse.error;
+
+    await loadPlayers();
+    setStatus(`K týmům bylo přiřazeno hráčů: ${assignments.length}.`, "ok");
+  } catch (error) {
+    console.error(error);
+    await loadPlayers();
+    setStatus(`Chyba při přiřazování hráčů: ${error.message}`, "error");
+  } finally {
+    setRosterButtonsBusy(false);
+  }
 });
 
 els.playerBatchSetupForm.addEventListener("submit", event => {
@@ -440,6 +628,7 @@ function fillPlayerEditForm(player) {
   form.nationality.value = player.nationality || "";
   form.birth_year.value = player.birth_year || "";
   form.position.value = player.position || "C";
+  populateTeamSelect(form.team_id, player.team_id);
   form.base_rating.value = player.base_rating ?? 0;
   form.raw_rating.value = player.raw_rating ?? 0;
   form.current_rating.value = player.current_rating ?? 0;
@@ -490,6 +679,17 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function getTeamLogo(shortName) {
+  const fileName = String(shortName || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return fileName ? `images/teams/${fileName}.webp` : "images/teams/default.svg";
 }
 
 loadPlayers();

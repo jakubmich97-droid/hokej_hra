@@ -176,6 +176,15 @@
         </div>
       </div>
 
+      <div class="roster-toolbar">
+        <button id="releaseWeakestPlayersBtn" class="btn secondary compact-btn" type="button">
+          Propustit nejslabší v týmech
+        </button>
+        <button id="assignPlayersBtn" class="btn compact-btn" type="button">
+          Doplnit chybějící pozice
+        </button>
+      </div>
+
       <div class="table-wrap">
         <table class="players-stats-table">
           <thead>
@@ -185,6 +194,7 @@
               <th>Rok</th>
               <th>Věk</th>
               <th>Pozice</th>
+              <th>Tým</th>
               <th>Zápasy</th>
               <th>Góly</th>
               <th>Asistence</th>
@@ -198,7 +208,7 @@
 
           <tbody id="playersTable">
             <tr>
-              <td colspan="13">Načítám hráče...</td>
+              <td colspan="14">Načítám hráče...</td>
             </tr>
           </tbody>
         </table>
@@ -236,6 +246,12 @@
             <option value="PK">PK</option>
             <option value="LO">LO</option>
             <option value="PO">PO</option>
+          </select>
+        </label>
+        <label>
+          <span>Tým</span>
+          <select name="team_id">
+            <option value="">Volný</option>
           </select>
         </label>
       </div>

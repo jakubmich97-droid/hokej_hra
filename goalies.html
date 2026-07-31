@@ -156,6 +156,12 @@
         </div>
       </div>
 
+      <div class="roster-toolbar">
+        <button id="assignGoaliesBtn" class="btn compact-btn" type="button">
+          Doplnit brankáře týmům
+        </button>
+      </div>
+
       <div class="table-wrap">
         <table class="goalie-table">
           <thead>
@@ -164,6 +170,8 @@
               <th>Národnost</th>
               <th>Rok</th>
               <th>Věk</th>
+              <th>Pozice</th>
+              <th>Tým</th>
               <th>Base</th>
               <th>Current</th>
               <th>Zápasy</th>
@@ -175,7 +183,7 @@
             </tr>
           </thead>
           <tbody id="goaliesTable">
-            <tr><td colspan="12">Načítám brankáře...</td></tr>
+            <tr><td colspan="14">Načítám brankáře...</td></tr>
           </tbody>
         </table>
       </div>
@@ -207,6 +215,12 @@
         <label>
           <span>Pozice</span>
           <input value="G · Brankář" disabled />
+        </label>
+        <label>
+          <span>Tým</span>
+          <select name="team_id">
+            <option value="">Volný</option>
+          </select>
         </label>
       </div>
 

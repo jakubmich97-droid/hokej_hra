@@ -42,6 +42,7 @@ function setStatus(message, type = "muted") {
 
 async function loadGoalies() {
   setStatus("Načítám brankáře a sezónní statistiky...");
+  await HockeyRatings.recalculate(db);
 
   const [goaliesResponse, statsResponse, teamsResponse, rosterSchemaResponse] = await Promise.all([
     db

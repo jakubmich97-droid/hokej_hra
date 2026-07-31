@@ -3,7 +3,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const CURRENT_SEASON = 2026;
+const CURRENT_SEASON = HockeySeason.getCurrentSeason();
 
 const state = {
   players: [],

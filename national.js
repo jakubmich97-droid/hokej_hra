@@ -2,7 +2,7 @@ const SUPABASE_URL = "https://nqvpxopsiiagemumfbmc.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xdnB4b3BzaWlhZ2VtdW1mYm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTQwNTcsImV4cCI6MjA5NTI3MDA1N30.VQYWGLALTxD84EksKwwUuVh5zfoAkCgenhMRXm3xdMs";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const CURRENT_SEASON = 2026;
+const CURRENT_SEASON = HockeySeason.getCurrentSeason();
 const category = document.body.dataset.nationalCategory;
 const categoryLabel = document.body.dataset.categoryLabel;
 

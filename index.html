@@ -27,7 +27,7 @@
 
       <div class="season-chip">
         <span class="live-dot"></span>
-        Sezóna 2026
+        Sezóna 2000
       </div>
     </div>
   </header>
@@ -50,6 +50,32 @@
         <span class="hero-panel-label">Stav světa</span>
         <strong>Databáze online</strong>
         <small><span class="live-dot"></span> Supabase synchronizováno</small>
+      </div>
+    </section>
+
+    <section class="card season-control-card">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Season management</span>
+          <h2>Správa sezóny</h2>
+        </div>
+        <span id="currentSeasonPill" class="pill live">Aktuální: 2000</span>
+      </div>
+
+      <div class="season-control-grid">
+        <label class="season-select-field">
+          <span>Zobrazená sezóna</span>
+          <select id="dashboardSeasonSelect" aria-label="Zobrazená sezóna"></select>
+        </label>
+
+        <div class="season-control-copy">
+          <strong id="selectedSeasonTitle">Sezóna 2000</strong>
+          <small id="selectedSeasonNote">Právě probíhající sezóna.</small>
+        </div>
+
+        <button id="endSeasonBtn" class="btn danger" type="button">
+          Ukončit sezónu 2000
+        </button>
       </div>
     </section>
 
@@ -146,7 +172,7 @@
           <span class="section-kicker">Competition center</span>
           <h2>Soutěže a zápasy</h2>
         </div>
-        <span class="pill live">Season 2026</span>
+        <span id="competitionSeasonPill" class="pill live">Season 2000</span>
       </div>
 
       <div class="competition-grid">
@@ -236,6 +262,7 @@
   </main>
 
   <script src="navigation.js"></script>
+  <script src="season.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

@@ -5,15 +5,20 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const CURRENT_SEASON = 2026;
-
 const state = {
   players: [],
-  teams: []
+  teams: [],
+  selectedSeason: HockeySeason.getSelectedSeason()
 };
 
 const els = {
   refreshBtn: document.querySelector("#refreshBtn"),
+  dashboardSeasonSelect: document.querySelector("#dashboardSeasonSelect"),
+  endSeasonBtn: document.querySelector("#endSeasonBtn"),
+  currentSeasonPill: document.querySelector("#currentSeasonPill"),
+  selectedSeasonTitle: document.querySelector("#selectedSeasonTitle"),
+  selectedSeasonNote: document.querySelector("#selectedSeasonNote"),
+  competitionSeasonPill: document.querySelector("#competitionSeasonPill"),
   statusBox: document.querySelector("#statusBox"),
 
   playersCount: document.querySelector("#playersCount"),
@@ -61,6 +66,28 @@ function render() {
   renderTeams();
   renderTopPlayers();
   renderPlayersTable();
+  renderSeasonControls();
+}
+
+function renderSeasonControls() {
+  const currentSeason = HockeySeason.getCurrentSeason();
+  const selectedSeason = state.selectedSeason;
+
+  els.dashboardSeasonSelect.innerHTML = HockeySeason.getAvailableSeasons()
+    .map(season => `
+      <option value="${season}" ${season === selectedSeason ? "selected" : ""}>
+        Sezóna ${season}
+      </option>
+    `)
+    .join("");
+
+  els.currentSeasonPill.textContent = `Aktuální: ${currentSeason}`;
+  els.selectedSeasonTitle.textContent = `Sezóna ${selectedSeason}`;
+  els.competitionSeasonPill.textContent = `Season ${selectedSeason}`;
+  els.endSeasonBtn.textContent = `Ukončit sezónu ${currentSeason}`;
+  els.selectedSeasonNote.textContent = selectedSeason === currentSeason
+    ? "Právě probíhající sezóna."
+    : `Historický přehled. Aktuálně probíhá sezóna ${currentSeason}.`;
 }
 
 function renderTeams() {
@@ -120,7 +147,7 @@ function renderPlayersTable() {
   }
 
   els.playersTable.innerHTML = skaters.map(player => {
-    const age = CURRENT_SEASON - Number(player.birth_year);
+    const age = state.selectedSeason - Number(player.birth_year);
 
     return `
       <tr>
@@ -150,6 +177,30 @@ els.refreshBtn.addEventListener("click", async () => {
     console.error(error);
     setStatus(`Chyba při načítání: ${error.message}`, "error");
   }
+});
+
+els.dashboardSeasonSelect.addEventListener("change", () => {
+  state.selectedSeason = HockeySeason.setSelectedSeason(els.dashboardSeasonSelect.value);
+  render();
+  setStatus(`Zobrazuji sezónu ${state.selectedSeason}.`, "ok");
+});
+
+els.endSeasonBtn.addEventListener("click", () => {
+  const currentSeason = HockeySeason.getCurrentSeason();
+  const confirmed = window.confirm(
+    `Opravdu ukončit sezónu ${currentSeason}? Tím začne sezóna ${currentSeason + 1}.`
+  );
+
+  if (!confirmed) return;
+
+  const result = HockeySeason.endCurrentSeason();
+  state.selectedSeason = result.currentSeason;
+  HockeySeason.syncDocument();
+  render();
+  setStatus(
+    `Sezóna ${result.endedSeason} byla ukončena. Začíná sezóna ${result.currentSeason}.`,
+    "ok"
+  );
 });
 
 

@@ -85,8 +85,11 @@
       GOALIE_WEIGHTS
     );
 
+    const allUpdates = [...skaterUpdates, ...goalieUpdates];
+    assignUniqueSortRatings(allUpdates);
+
     const playersById = new Map(players.map(player => [String(player.id), player]));
-    const changedUpdates = [...skaterUpdates, ...goalieUpdates].filter(update => {
+    const changedUpdates = allUpdates.filter(update => {
       const player = playersById.get(String(update.id));
       return !almostEqual(player.base_rating, update.baseRating)
         || !almostEqual(player.raw_rating, update.rawRating)
@@ -94,20 +97,47 @@
         || !almostEqual(player.sort_rating, update.sortRating);
     });
 
-    for (let start = 0; start < changedUpdates.length; start += 20) {
-      const responses = await Promise.all(changedUpdates.slice(start, start + 20).map(item =>
-        db.from("hockey_players").update({
-          base_rating: item.baseRating,
-          raw_rating: item.rawRating,
-          current_rating: item.currentRating,
-          sort_rating: item.sortRating
-        }).eq("id", item.id)
+    // sort_rating is globally unique in Supabase. Updating directly can collide
+    // with another player's old value while the rankings are being reordered.
+    // Move every changed row to a unique temporary range first, then write the
+    // final values. This also safely repairs a previously interrupted update.
+    const temporaryBase = -1_000_000_000
+      - Math.floor(Date.now() % 1_000_000) * 1000
+      - Math.floor(Math.random() * 500);
+    await updateInBatches(changedUpdates, item => ({
+      sort_rating: temporaryBase - allUpdates.findIndex(update => update.id === item.id)
+    }), db);
+
+    await updateInBatches(changedUpdates, item => ({
+      base_rating: item.baseRating,
+      raw_rating: item.rawRating,
+      current_rating: item.currentRating,
+      sort_rating: item.sortRating
+    }), db);
+
+    return { total: players.length, updated: changedUpdates.length };
+  }
+
+  function assignUniqueSortRatings(updates) {
+    [...updates]
+      .sort((first, second) =>
+        second.currentRating - first.currentRating
+        || second.rawRating - first.rawRating
+        || String(first.id).localeCompare(String(second.id))
+      )
+      .forEach((update, index, ordered) => {
+        update.sortRating = update.currentRating + (ordered.length - index) / 1000000;
+      });
+  }
+
+  async function updateInBatches(items, getValues, db) {
+    for (let start = 0; start < items.length; start += 20) {
+      const responses = await Promise.all(items.slice(start, start + 20).map(item =>
+        db.from("hockey_players").update(getValues(item)).eq("id", item.id)
       ));
       const failedResponse = responses.find(response => response.error);
       if (failedResponse?.error) throw failedResponse.error;
     }
-
-    return { total: players.length, updated: changedUpdates.length };
   }
 
   function aggregateStats(rows, project) {

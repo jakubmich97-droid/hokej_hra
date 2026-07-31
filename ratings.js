@@ -101,11 +101,8 @@
     // with another player's old value while the rankings are being reordered.
     // Move every changed row to a unique temporary range first, then write the
     // final values. This also safely repairs a previously interrupted update.
-    const temporaryBase = -1_000_000_000
-      - Math.floor(Date.now() % 1_000_000) * 1000
-      - Math.floor(Math.random() * 500);
     await updateInBatches(changedUpdates, item => ({
-      sort_rating: temporaryBase - allUpdates.findIndex(update => update.id === item.id)
+      sort_rating: -900 - allUpdates.findIndex(update => update.id === item.id) / 1000
     }), db);
 
     await updateInBatches(changedUpdates, item => ({

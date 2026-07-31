@@ -40,9 +40,8 @@ function setStatus(message, type = "muted") {
   els.statusBox.className = `status ${type}`;
 }
 
-async function loadGoalies() {
+async function loadGoalies({ synchronizeRatings = true } = {}) {
   setStatus("Načítám brankáře a sezónní statistiky...");
-  await HockeyRatings.recalculate(db);
 
   const [goaliesResponse, statsResponse, teamsResponse, rosterSchemaResponse] = await Promise.all([
     db
@@ -97,6 +96,26 @@ async function loadGoalies() {
   }
 
   setStatus(`Brankáři a statistiky načteny (${getStatsRangeLabel()}).`, "ok");
+
+  if (synchronizeRatings) {
+    void synchronizeGoalieRatings();
+  }
+}
+
+async function synchronizeGoalieRatings() {
+  try {
+    const result = await HockeyRatings.recalculate(db);
+    if (!result.updated) return;
+
+    await loadGoalies({ synchronizeRatings: false });
+    setStatus(`Ratingy brankářů byly opraveny. Aktualizováno záznamů: ${result.updated}.`, "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(
+      `Brankáři jsou načteni, ale ratingy se nepodařilo synchronizovat: ${error.message}`,
+      "error"
+    );
+  }
 }
 
 function aggregateGoalieStats() {

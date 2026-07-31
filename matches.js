@@ -42,9 +42,8 @@ function setStatus(message, type = "muted") {
   els.statusBox.className = `status ${type}`;
 }
 
-async function loadMatches() {
+async function loadMatches({ synchronizeRatings = true } = {}) {
   setStatus("Načítám zápasy a týmy...");
-  await HockeyRatings.recalculate(db);
 
   const [teamsResponse, playersResponse, matchesResponse, schemaResponse] = await Promise.all([
     db.from("hockey_teams").select("*").order("name", { ascending: true }),
@@ -89,6 +88,26 @@ async function loadMatches() {
       : "Zápasy načteny. Pro aktivaci generátoru spusť SQL rozšíření hockey_matches.",
     state.schemaReady ? "ok" : "muted"
   );
+
+  if (synchronizeRatings) {
+    void synchronizeMatchRatings();
+  }
+}
+
+async function synchronizeMatchRatings() {
+  try {
+    const result = await HockeyRatings.recalculate(db);
+    if (!result.updated) return;
+
+    await loadMatches({ synchronizeRatings: false });
+    setStatus(`Ratingy soupisek byly opraveny. Aktualizováno záznamů: ${result.updated}.`, "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(
+      `Zápasy jsou načteny, ale ratingy se nepodařilo synchronizovat: ${error.message}`,
+      "error"
+    );
+  }
 }
 
 function applyFilters() {

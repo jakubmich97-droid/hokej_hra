@@ -4,12 +4,21 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CURRENT_SEASON = HockeySeason.getCurrentSeason();
 const LEAGUE_SIZE = 6;
+const LINEUP_POSITIONS = ["C", "LK", "PK", "LO", "PO", "G"];
+const ATTACK_POSITIONS = ["C", "LK", "PK"];
+const DEFENSE_POSITIONS = ["LO", "PO"];
+const BASE_SHOTS = 28;
+const SHOT_STRENGTH_MULTIPLIER = 18;
+const HOME_SHOT_ADVANTAGE = 1.5;
 
 const state = {
   teams: [],
+  players: [],
   matches: [],
   filteredMatches: [],
-  schemaReady: false
+  schemaReady: false,
+  generationBusy: false,
+  simulationBusy: false
 };
 
 const els = {
@@ -17,11 +26,14 @@ const els = {
   matchesCount: document.querySelector("#matchesCount"),
   leagueMatchesCount: document.querySelector("#leagueMatchesCount"),
   nationalMatchesCount: document.querySelector("#nationalMatchesCount"),
+  playedMatchesCount: document.querySelector("#playedMatchesCount"),
   matchesTable: document.querySelector("#matchesTable"),
   filterCompetition: document.querySelector("#filterCompetition"),
   filterCategory: document.querySelector("#filterCategory"),
   refreshMatchesBtn: document.querySelector("#refreshMatchesBtn"),
-  generateButtons: [...document.querySelectorAll(".generate-btn")]
+  generateButtons: [...document.querySelectorAll(".generate-btn")],
+  simulateNextRoundBtn: document.querySelector("#simulateNextRoundBtn"),
+  simulateAllBtn: document.querySelector("#simulateAllBtn")
 };
 
 function setStatus(message, type = "muted") {
@@ -32,8 +44,12 @@ function setStatus(message, type = "muted") {
 async function loadMatches() {
   setStatus("Načítám zápasy a týmy...");
 
-  const [teamsResponse, matchesResponse, schemaResponse] = await Promise.all([
+  const [teamsResponse, playersResponse, matchesResponse, schemaResponse] = await Promise.all([
     db.from("hockey_teams").select("*").order("name", { ascending: true }),
+    db
+      .from("hockey_players")
+      .select("id, name, team_id, position, current_rating, sort_rating, active")
+      .eq("active", true),
     db.from("hockey_matches").select("*").eq("season", CURRENT_SEASON),
     db.from("hockey_matches").select("id, round_number").limit(1)
   ]);
@@ -48,12 +64,18 @@ async function loadMatches() {
     return;
   }
 
+  if (playersResponse.error) {
+    setStatus(`Chyba při načítání soupisek: ${playersResponse.error.message}`, "error");
+    return;
+  }
+
   state.teams = teamsResponse.data || [];
+  state.players = playersResponse.data || [];
   state.matches = sortMatches(matchesResponse.data || []);
   state.schemaReady = !schemaResponse.error;
 
   els.generateButtons.forEach(button => {
-    button.disabled = !state.schemaReady;
+    button.disabled = !state.schemaReady || state.simulationBusy || state.generationBusy;
     button.title = state.schemaReady ? "" : "Nejdřív spusť SQL rozšíření hockey_matches.";
   });
 
@@ -90,7 +112,9 @@ function render() {
   els.nationalMatchesCount.textContent = state.matches.filter(
     match => match.competition_type !== "league"
   ).length;
+  els.playedMatchesCount.textContent = state.matches.filter(isMatchPlayed).length;
 
+  updateSimulationButtons();
   renderMatchesTable();
 }
 
@@ -109,7 +133,7 @@ function renderMatchesTable() {
     const awayTeam = teamsById.get(String(match.away_team_id));
 
     return `
-      <tr>
+      <tr class="${isMatchPlayed(match) ? "played-match" : ""}">
         <td>${renderCompetition(match)}</td>
         <td><strong>${match.round_number ?? "—"}</strong></td>
         <td>${renderTeamName(homeTeam)}</td>
@@ -138,13 +162,19 @@ els.generateButtons.forEach(button => {
 });
 
 els.refreshMatchesBtn.addEventListener("click", loadMatches);
+els.simulateNextRoundBtn.addEventListener("click", simulateNextRound);
+els.simulateAllBtn.addEventListener("click", simulateAllRemaining);
 
-[
-  els.filterCompetition,
-  els.filterCategory
-].forEach(input => {
+[els.filterCategory].forEach(input => {
   input.addEventListener("input", applyFilters);
   input.addEventListener("change", applyFilters);
+});
+
+els.filterCompetition.addEventListener("change", () => {
+  const leagueOnly = els.filterCompetition.value === "league";
+  if (leagueOnly) els.filterCategory.value = "";
+  els.filterCategory.disabled = leagueOnly;
+  applyFilters();
 });
 
 async function generateSchedule(type, category) {
@@ -241,6 +271,273 @@ async function generateSchedule(type, category) {
   }
 }
 
+function isMatchPlayed(match) {
+  return Boolean(match.played_at)
+    || (match.home_goals !== null && match.home_goals !== undefined
+      && match.away_goals !== null && match.away_goals !== undefined);
+}
+
+function getUnplayedFilteredMatches() {
+  return state.filteredMatches.filter(match => !isMatchPlayed(match));
+}
+
+function updateSimulationButtons() {
+  const hasUnplayedMatches = getUnplayedFilteredMatches().length > 0;
+  const disabled = !state.schemaReady
+    || state.simulationBusy
+    || state.generationBusy
+    || !hasUnplayedMatches;
+
+  els.simulateNextRoundBtn.disabled = disabled;
+  els.simulateAllBtn.disabled = disabled;
+
+  const title = !state.schemaReady
+    ? "Nejdřív spusť SQL rozšíření hockey_matches."
+    : !hasUnplayedMatches
+      ? "Ve vybraném přehledu není žádný neodehraný zápas."
+      : "";
+  els.simulateNextRoundBtn.title = title;
+  els.simulateAllBtn.title = title;
+}
+
+async function simulateNextRound() {
+  const unplayedMatches = getUnplayedFilteredMatches();
+  if (!unplayedMatches.length) return;
+
+  const nextRound = Math.min(...unplayedMatches.map(match => Number(match.round_number || 0)));
+  const roundMatches = unplayedMatches.filter(
+    match => Number(match.round_number || 0) === nextRound
+  );
+
+  await simulateMatches(roundMatches, `kolo ${nextRound}`);
+}
+
+async function simulateAllRemaining() {
+  const unplayedMatches = getUnplayedFilteredMatches();
+  if (!unplayedMatches.length) return;
+
+  const confirmed = window.confirm(
+    `Odehrát všechny zbývající zápasy podle aktivních filtrů? Celkem: ${unplayedMatches.length}.`
+  );
+  if (!confirmed) return;
+
+  await simulateMatches(unplayedMatches, `${unplayedMatches.length} zápasů`);
+}
+
+async function simulateMatches(matchesToPlay, label) {
+  try {
+    const teamsById = new Map(state.teams.map(team => [String(team.id), team]));
+    const lineupCache = new Map();
+    const preparedMatches = matchesToPlay.map(match => {
+      const homeTeam = teamsById.get(String(match.home_team_id));
+      const awayTeam = teamsById.get(String(match.away_team_id));
+
+      if (!homeTeam || !awayTeam) {
+        throw new Error("U některého zápasu se nepodařilo najít tým.");
+      }
+
+      const homeLineup = getCachedLineup(homeTeam, lineupCache);
+      const awayLineup = getCachedLineup(awayTeam, lineupCache);
+
+      if (homeLineup.missingPositions.length) {
+        throw new Error(
+          `${homeTeam.name}: chybí pozice ${homeLineup.missingPositions.join(", ")}.`
+        );
+      }
+
+      if (awayLineup.missingPositions.length) {
+        throw new Error(
+          `${awayTeam.name}: chybí pozice ${awayLineup.missingPositions.join(", ")}.`
+        );
+      }
+
+      return { match, homeLineup, awayLineup };
+    });
+
+    const averageGoalieRating = getAverageGoalieRating();
+    const simulations = preparedMatches.map(item => ({
+      id: item.match.id,
+      result: simulateMatch(item.homeLineup, item.awayLineup, averageGoalieRating)
+    }));
+
+    setSimulationBusy(true);
+    setStatus(`Simuluji ${label}...`);
+
+    const responses = await Promise.all(simulations.map(simulation =>
+      db
+        .from("hockey_matches")
+        .update(simulation.result)
+        .eq("id", simulation.id)
+        .is("played_at", null)
+    ));
+    const failedResponse = responses.find(response => response.error);
+    if (failedResponse?.error) throw failedResponse.error;
+
+    await loadMatches();
+    setStatus(`Odehráno: ${label}.`, "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(`Zápasy nelze odehrát: ${error.message}`, "error");
+  } finally {
+    setSimulationBusy(false);
+  }
+}
+
+function getCachedLineup(team, cache) {
+  const key = String(team.id);
+  if (!cache.has(key)) cache.set(key, getTeamLineup(team));
+  return cache.get(key);
+}
+
+function getTeamLineup(team) {
+  const teamPlayers = state.players.filter(
+    player => String(player.team_id) === String(team.id)
+  );
+  const playersByPosition = new Map();
+
+  LINEUP_POSITIONS.forEach(position => {
+    const bestPlayer = teamPlayers
+      .filter(player => player.position === position)
+      .sort(comparePlayersByRating)[0];
+    if (bestPlayer) playersByPosition.set(position, bestPlayer);
+  });
+
+  return {
+    team,
+    playersByPosition,
+    missingPositions: LINEUP_POSITIONS.filter(position => !playersByPosition.has(position))
+  };
+}
+
+function comparePlayersByRating(first, second) {
+  return Number(second.current_rating || 0) - Number(first.current_rating || 0)
+    || Number(second.sort_rating || 0) - Number(first.sort_rating || 0)
+    || String(first.name).localeCompare(String(second.name), "cs");
+}
+
+function getLineupRating(lineup, positions) {
+  const ratings = positions.map(position =>
+    Number(lineup.playersByPosition.get(position)?.current_rating || 0)
+  );
+  return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+}
+
+function getAverageGoalieRating() {
+  const goalies = state.players.filter(player => player.position === "G" && player.team_id);
+  if (!goalies.length) return 0;
+  return goalies.reduce((sum, goalie) => sum + Number(goalie.current_rating || 0), 0)
+    / goalies.length;
+}
+
+function simulateMatch(homeLineup, awayLineup, averageGoalieRating) {
+  const homeAttack = getLineupRating(homeLineup, ATTACK_POSITIONS);
+  const homeDefense = getLineupRating(homeLineup, DEFENSE_POSITIONS);
+  const awayAttack = getLineupRating(awayLineup, ATTACK_POSITIONS);
+  const awayDefense = getLineupRating(awayLineup, DEFENSE_POSITIONS);
+  const homeGoalie = Number(homeLineup.playersByPosition.get("G").current_rating || 0);
+  const awayGoalie = Number(awayLineup.playersByPosition.get("G").current_rating || 0);
+
+  let homeShots = generateShots(homeAttack, awayDefense, true);
+  let awayShots = generateShots(awayAttack, homeDefense, false);
+  let homeGoals = generateGoals(homeShots, awayGoalie, averageGoalieRating);
+  let awayGoals = generateGoals(awayShots, homeGoalie, averageGoalieRating);
+  let homeResult;
+  let awayResult;
+
+  if (homeGoals === awayGoals) {
+    const homeOvertimeStrength = homeAttack * 0.55 + homeDefense * 0.1 + homeGoalie * 0.35 + 0.02;
+    const awayOvertimeStrength = awayAttack * 0.55 + awayDefense * 0.1 + awayGoalie * 0.35;
+    const totalStrength = homeOvertimeStrength + awayOvertimeStrength;
+    const homeWinChance = totalStrength > 0
+      ? clamp(homeOvertimeStrength / totalStrength, 0.35, 0.65)
+      : 0.52;
+
+    if (Math.random() < homeWinChance) {
+      homeGoals += 1;
+      homeShots += 1;
+      homeResult = "VP";
+      awayResult = "PP";
+    } else {
+      awayGoals += 1;
+      awayShots += 1;
+      homeResult = "PP";
+      awayResult = "VP";
+    }
+  } else if (homeGoals > awayGoals) {
+    homeResult = "V";
+    awayResult = "P";
+  } else {
+    homeResult = "P";
+    awayResult = "V";
+  }
+
+  return {
+    home_attack: round(homeAttack, 6),
+    home_defense: round(homeDefense, 6),
+    away_attack: round(awayAttack, 6),
+    away_defense: round(awayDefense, 6),
+    home_shots: homeShots,
+    away_shots: awayShots,
+    home_goals: homeGoals,
+    away_goals: awayGoals,
+    home_result: homeResult,
+    away_result: awayResult,
+    played_at: new Date().toISOString()
+  };
+}
+
+function generateShots(attackRating, opponentDefenseRating, isHome) {
+  const expectedShots = BASE_SHOTS
+    + SHOT_STRENGTH_MULTIPLIER * (attackRating - opponentDefenseRating)
+    + (isHome ? HOME_SHOT_ADVANTAGE : 0);
+  return Math.round(clamp(expectedShots + randomNormal(0, 4), 15, 48));
+}
+
+function generateGoals(shots, opponentGoalieRating, averageGoalieRating) {
+  const goalieFactor = clamp(
+    1 - (opponentGoalieRating - averageGoalieRating) * 0.8,
+    0.75,
+    1.25
+  );
+  let goals = 0;
+
+  for (let shot = 0; shot < shots; shot += 1) {
+    const shotsPerGoal = randomInteger(8, 12);
+    const goalProbability = clamp((1 / shotsPerGoal) * goalieFactor, 0.035, 0.2);
+    if (Math.random() < goalProbability) goals += 1;
+  }
+
+  return goals;
+}
+
+function randomNormal(mean, deviation) {
+  const first = Math.max(Math.random(), Number.EPSILON);
+  const second = Math.random();
+  const standardNormal = Math.sqrt(-2 * Math.log(first)) * Math.cos(2 * Math.PI * second);
+  return mean + standardNormal * deviation;
+}
+
+function randomInteger(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function round(value, decimals) {
+  const power = 10 ** decimals;
+  return Math.round(Number(value) * power) / power;
+}
+
+function setSimulationBusy(isBusy) {
+  state.simulationBusy = isBusy;
+  els.generateButtons.forEach(button => {
+    button.disabled = isBusy || state.generationBusy || !state.schemaReady;
+  });
+  updateSimulationButtons();
+}
+
 function createRoundRobin(teams) {
   const rotation = [...teams];
   if (rotation.length % 2 !== 0) rotation.push(null);
@@ -295,9 +592,11 @@ function sortMatches(matches) {
 }
 
 function setGeneratorBusy(isBusy) {
+  state.generationBusy = isBusy;
   els.generateButtons.forEach(button => {
-    button.disabled = isBusy || !state.schemaReady;
+    button.disabled = isBusy || state.simulationBusy || !state.schemaReady;
   });
+  updateSimulationButtons();
 }
 
 function renderCompetition(match) {

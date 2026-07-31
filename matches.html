@@ -72,7 +72,7 @@
       </div>
     </section>
 
-    <section class="dashboard stats-grid">
+    <section class="dashboard stats-grid dashboard-stats">
       <div class="stat">
         <span class="stat-code">ALL</span><small>Celkem zápasů</small>
         <span id="matchesCount" class="stat-value">0</span>
@@ -85,6 +85,10 @@
       <div class="stat">
         <span class="stat-code live">REP</span><small>Repre</small>
         <span id="nationalMatchesCount" class="stat-value">0</span><em>reprezentačních zápasů</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code live">PLY</span><small>Odehráno</small>
+        <span id="playedMatchesCount" class="stat-value">0</span><em>dokončených zápasů</em>
       </div>
     </section>
 
@@ -109,6 +113,21 @@
           <option value="u21">U21</option>
           <option value="u18">U18</option>
         </select>
+      </div>
+
+      <div class="match-simulation-toolbar">
+        <div class="match-mechanics-note">
+          <strong>Simulace zápasů</strong>
+          <small>Útok proti obraně určí střely, brankář ovlivní proměňování šancí.</small>
+        </div>
+        <div class="button-group">
+          <button id="simulateNextRoundBtn" class="btn compact-btn" type="button">
+            Odehrát další kolo
+          </button>
+          <button id="simulateAllBtn" class="btn secondary compact-btn" type="button">
+            Odehrát vše zbývající
+          </button>
+        </div>
       </div>
 
       <div class="table-wrap">

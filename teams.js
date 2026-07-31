@@ -2,9 +2,11 @@ const SUPABASE_URL = "https://nqvpxopsiiagemumfbmc.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xdnB4b3BzaWlhZ2VtdW1mYm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTQwNTcsImV4cCI6MjA5NTI3MDA1N30.VQYWGLALTxD84EksKwwUuVh5zfoAkCgenhMRXm3xdMs";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const REQUIRED_POSITIONS = ["C", "LK", "PK", "LO", "PO", "G"];
 
 const state = {
   teams: [],
+  players: [],
   filteredTeams: []
 };
 
@@ -22,6 +24,10 @@ const els = {
   teamsCount: document.querySelector("#teamsCount"),
   leagueTeamsCount: document.querySelector("#leagueTeamsCount"),
   nationalTeamsCount: document.querySelector("#nationalTeamsCount"),
+  leagueRosterAlert: document.querySelector("#leagueRosterAlert"),
+  seniorRosterAlert: document.querySelector("#seniorRosterAlert"),
+  u21RosterAlert: document.querySelector("#u21RosterAlert"),
+  u18RosterAlert: document.querySelector("#u18RosterAlert"),
   teamsGrid: document.querySelector("#teamsGrid"),
   teamEditDialog: document.querySelector("#teamEditDialog"),
   teamEditForm: document.querySelector("#teamEditForm")
@@ -35,20 +41,32 @@ function setStatus(message, type = "muted") {
 async function loadTeams() {
   setStatus("Načítám týmy...");
 
-  const { data, error } = await db
-    .from("hockey_teams")
-    .select("*")
-    .order("team_type", { ascending: true })
-    .order("name", { ascending: true });
+  const [teamsResponse, playersResponse] = await Promise.all([
+    db
+      .from("hockey_teams")
+      .select("*")
+      .order("team_type", { ascending: true })
+      .order("name", { ascending: true }),
+    db
+      .from("hockey_players")
+      .select("id, team_id, position, active")
+      .eq("active", true)
+  ]);
 
-  if (error) {
-    setStatus(`Chyba při načítání týmů: ${error.message}`, "error");
+  if (teamsResponse.error) {
+    setStatus(`Chyba při načítání týmů: ${teamsResponse.error.message}`, "error");
     return;
   }
 
-  state.teams = data || [];
+  if (playersResponse.error) {
+    setStatus(`Chyba při načítání soupisek: ${playersResponse.error.message}`, "error");
+    return;
+  }
+
+  state.teams = teamsResponse.data || [];
+  state.players = playersResponse.data || [];
   applyFilters();
-  setStatus("Týmy načteny.", "ok");
+  setStatus("Týmy a kontroly soupisek načteny.", "ok");
 }
 
 function applyFilters() {
@@ -74,7 +92,66 @@ function render() {
   els.leagueTeamsCount.textContent = state.teams.filter(team => team.team_type === "league").length;
   els.nationalTeamsCount.textContent = state.teams.filter(team => team.team_type === "national").length;
 
+  renderRosterAlerts();
   renderTeams();
+}
+
+function renderRosterAlerts() {
+  const groups = [
+    {
+      element: els.leagueRosterAlert,
+      code: "LGE",
+      label: "Ligové týmy",
+      teams: state.teams.filter(team => team.team_type === "league")
+    },
+    {
+      element: els.seniorRosterAlert,
+      code: "SEN",
+      label: "Rep Sen",
+      teams: state.teams.filter(team =>
+        team.team_type === "national" && team.age_category === "senior"
+      )
+    },
+    {
+      element: els.u21RosterAlert,
+      code: "U21",
+      label: "Rep U21",
+      teams: state.teams.filter(team =>
+        team.team_type === "national" && team.age_category === "u21"
+      )
+    },
+    {
+      element: els.u18RosterAlert,
+      code: "U18",
+      label: "Rep U18",
+      teams: state.teams.filter(team =>
+        team.team_type === "national" && team.age_category === "u18"
+      )
+    }
+  ];
+
+  groups.forEach(group => {
+    const incompleteTeams = group.teams.filter(team => !getRosterStatus(team).complete);
+    const hasTeams = group.teams.length > 0;
+    const isComplete = hasTeams && incompleteTeams.length === 0;
+    const stateClass = !hasTeams ? "empty" : isComplete ? "ready" : "warning";
+    const icon = !hasTeams ? "—" : isComplete ? "✓" : "⚠";
+    const message = !hasTeams
+      ? "Bez týmů"
+      : isComplete
+        ? "Všechny soupisky kompletní"
+        : `Nekompletní týmy: ${incompleteTeams.length} / ${group.teams.length}`;
+
+    group.element.className = `roster-alert ${stateClass}`;
+    group.element.innerHTML = `
+      <span class="roster-alert-icon" aria-hidden="true">${icon}</span>
+      <span class="roster-alert-copy">
+        <small>${group.code}</small>
+        <strong>${group.label}</strong>
+        <em>${message}</em>
+      </span>
+    `;
+  });
 }
 
 function renderTeams() {
@@ -87,9 +164,10 @@ function renderTeams() {
     const typeLabel = team.team_type === "league" ? "Ligový tým" : "Reprezentace";
     const categoryLabel = getCategoryLabel(team.age_category);
     const details = [typeLabel, categoryLabel, team.country].filter(Boolean).join(" · ");
+    const rosterStatus = getRosterStatus(team);
 
     return `
-      <article class="team-card">
+      <article class="team-card ${rosterStatus.complete ? "roster-complete" : "roster-incomplete"}">
         <div class="team-card-head">
           <img
             src="${getTeamLogo(team.short_name)}"
@@ -103,6 +181,27 @@ function renderTeams() {
           </div>
         </div>
         <p>${escapeHtml(details)}</p>
+        <div class="team-roster-check">
+          <div class="team-roster-head">
+            <strong>Kontrola soupisky</strong>
+            <span class="tag ${rosterStatus.complete ? "roster-ready-tag" : "roster-warning-tag"}">
+              ${rosterStatus.complete
+                ? "Kompletní"
+                : `Chybí ${rosterStatus.missingPositions.length}`}
+            </span>
+          </div>
+          <div class="position-checks">
+            ${REQUIRED_POSITIONS.map(position => {
+              const occupied = rosterStatus.occupiedPositions.has(position);
+              return `
+                <span class="position-check ${occupied ? "ready" : "missing"}">
+                  <b aria-hidden="true">${occupied ? "✓" : "!"}</b>
+                  ${position}
+                </span>
+              `;
+            }).join("")}
+          </div>
+        </div>
         <button
           class="edit-btn"
           type="button"
@@ -114,6 +213,23 @@ function renderTeams() {
       </article>
     `;
   }).join("");
+}
+
+function getRosterStatus(team) {
+  const occupiedPositions = new Set(
+    state.players
+      .filter(player => String(player.team_id) === String(team.id))
+      .map(player => player.position)
+  );
+  const missingPositions = REQUIRED_POSITIONS.filter(
+    position => !occupiedPositions.has(position)
+  );
+
+  return {
+    occupiedPositions,
+    missingPositions,
+    complete: missingPositions.length === 0
+  };
 }
 
 els.teamsGrid.addEventListener("click", event => {

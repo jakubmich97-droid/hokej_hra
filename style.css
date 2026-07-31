@@ -1186,11 +1186,11 @@ select:focus {
 }
 
 .matches-table {
-  min-width: 1780px;
+  min-width: 1380px;
 }
 
 .league-table {
-  min-width: 720px;
+  min-width: 600px;
 }
 
 .team-table-name {
@@ -1315,14 +1315,15 @@ select:focus {
 
 table {
   width: 100%;
-  min-width: 980px;
+  min-width: 760px;
   border-collapse: collapse;
   background: rgba(1, 9, 18, 0.22);
+  font-size: 0.78rem;
 }
 
 th,
 td {
-  padding: 14px 13px;
+  padding: 9px 10px;
   border-bottom: 1px solid rgba(137, 191, 230, 0.10);
   text-align: left;
 }
@@ -1332,10 +1333,60 @@ th {
   top: 0;
   color: #8cc7e2;
   background: rgba(8, 25, 42, 0.98);
-  font-size: 0.67rem;
+  font-size: 0.61rem;
   font-weight: 950;
   letter-spacing: 0.09em;
   text-transform: uppercase;
+}
+
+th.sortable-column {
+  padding-right: 25px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+th.sortable-column::after {
+  content: "↕";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(140, 199, 226, 0.42);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+}
+
+th.sortable-column:hover,
+th.sortable-column:focus-visible,
+th.sort-active {
+  color: #d7f5ff;
+  background: rgba(13, 43, 68, 0.99);
+  outline: none;
+}
+
+th.sort-active::after {
+  content: "↑";
+  color: var(--ice);
+}
+
+th.sort-active.sort-descending::after {
+  content: "↓";
+}
+
+.table-wrap table .edit-btn {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 0.7rem;
+}
+
+.table-wrap table .tag,
+.table-wrap table .ranking-badge,
+.table-wrap table .save-percentage,
+.table-wrap table .result-code,
+.table-wrap table .competition-tag {
+  padding: 3px 6px;
+  font-size: 0.61rem;
 }
 
 tbody tr {
@@ -1422,11 +1473,11 @@ tbody tr:last-child td {
 }
 
 .goalie-table {
-  min-width: 1420px;
+  min-width: 1100px;
 }
 
 .players-stats-table {
-  min-width: 1530px;
+  min-width: 1180px;
 }
 
 .points-value {

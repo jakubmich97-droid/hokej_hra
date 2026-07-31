@@ -60,10 +60,10 @@
     <section class="card">
       <div class="section-head">
         <div>
-          <span class="section-kicker">League slots</span>
-          <h2>Ligové týmy</h2>
+          <span class="section-kicker">League standings</span>
+          <h2>Ligová tabulka</h2>
         </div>
-        <span class="pill">6 slots</span>
+        <span class="pill" data-current-season-template="Sezóna {season}">Sezóna 2000</span>
       </div>
 
       <div class="table-wrap">
@@ -72,19 +72,26 @@
             <tr>
               <th>#</th>
               <th>Tým</th>
-              <th>Zkratka</th>
-              <th>Země</th>
-              <th>Stav</th>
+              <th>Z</th>
+              <th>V</th>
+              <th>VP</th>
+              <th>PP</th>
+              <th>P</th>
+              <th>Vstřelené</th>
+              <th>Inkasované</th>
+              <th>Rozdíl</th>
+              <th>Body</th>
+              <th>Posledních 5</th>
             </tr>
           </thead>
           <tbody id="leagueTeamsTable">
-            <tr><td colspan="5">Načítám týmy...</td></tr>
+            <tr><td colspan="12">Načítám ligovou tabulku...</td></tr>
           </tbody>
         </table>
       </div>
 
       <p class="table-note">
-        Rozpis půjde vygenerovat po obsazení všech šesti míst.
+        Bodování: V = 3 body, VP = 2 body, PP = 1 bod, P = 0 bodů.
       </p>
     </section>
   </main>

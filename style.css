@@ -1190,13 +1190,58 @@ select:focus {
 }
 
 .league-table {
-  min-width: 600px;
+  min-width: 940px;
 }
 
 .team-table-name {
   display: flex;
   align-items: center;
   gap: 11px;
+}
+
+.league-points {
+  color: var(--yellow);
+  font-size: 0.92rem;
+}
+
+.goal-difference.positive {
+  color: var(--green);
+}
+
+.goal-difference.negative {
+  color: var(--pink);
+}
+
+.last-five {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.form-result {
+  font-weight: 950;
+}
+
+.form-v,
+.form-vp {
+  color: var(--green);
+}
+
+.form-pp {
+  color: var(--yellow);
+}
+
+.form-p {
+  color: var(--pink);
+}
+
+.form-separator {
+  margin-right: 3px;
+  color: var(--muted);
+}
+
+.form-empty {
+  color: var(--muted);
 }
 
 .empty-slot {

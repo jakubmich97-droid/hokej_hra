@@ -10,6 +10,7 @@ const DEFENSE_POSITIONS = ["LO", "PO"];
 const BASE_SHOTS = 28;
 const SHOT_STRENGTH_MULTIPLIER = 18;
 const HOME_SHOT_ADVANTAGE = 1.5;
+const SKATER_POSITIONS = ["C", "LK", "PK", "LO", "PO"];
 
 const state = {
   teams: [],
@@ -48,7 +49,7 @@ async function loadMatches() {
     db.from("hockey_teams").select("*").order("name", { ascending: true }),
     db
       .from("hockey_players")
-      .select("id, name, team_id, position, current_rating, sort_rating, active")
+      .select("id, name, team_id, position, base_rating, raw_rating, current_rating, sort_rating, active")
       .eq("active", true),
     db.from("hockey_matches").select("*").eq("season", CURRENT_SEASON),
     db.from("hockey_matches").select("id, round_number").limit(1)
@@ -70,7 +71,7 @@ async function loadMatches() {
   }
 
   state.teams = teamsResponse.data || [];
-  state.players = playersResponse.data || [];
+  state.players = await initializeMissingRatings(playersResponse.data || []);
   state.matches = sortMatches(matchesResponse.data || []);
   state.schemaReady = !schemaResponse.error;
 
@@ -121,7 +122,7 @@ function render() {
 function renderMatchesTable() {
   if (!state.filteredMatches.length) {
     els.matchesTable.innerHTML = `
-      <tr><td colspan="14">Zatím nebyl vygenerován žádný zápas.</td></tr>
+      <tr><td colspan="15">Zatím nebyl vygenerován žádný zápas.</td></tr>
     `;
     return;
   }
@@ -149,6 +150,13 @@ function renderMatchesTable() {
         <td>${played ? formatOptionalNumber(match.away_goals, 0) : "—"}</td>
         <td>${renderResultCode(match.home_result)}</td>
         <td>${renderResultCode(match.away_result)}</td>
+        <td>
+          ${played ? `
+            <button class="edit-btn reset-match-btn" type="button" data-reset-match="${escapeHtml(match.id)}">
+              Resetovat
+            </button>
+          ` : "—"}
+        </td>
       </tr>
     `;
   }).join("");
@@ -165,6 +173,14 @@ els.generateButtons.forEach(button => {
 els.refreshMatchesBtn.addEventListener("click", loadMatches);
 els.simulateNextRoundBtn.addEventListener("click", simulateNextRound);
 els.simulateAllBtn.addEventListener("click", simulateAllRemaining);
+
+els.matchesTable.addEventListener("click", event => {
+  const button = event.target.closest("[data-reset-match]");
+  if (!button) return;
+
+  const match = state.matches.find(item => String(item.id) === button.dataset.resetMatch);
+  if (match) resetMatch(match);
+});
 
 [els.filterCategory].forEach(input => {
   input.addEventListener("input", applyFilters);
@@ -356,23 +372,18 @@ async function simulateMatches(matchesToPlay, label) {
 
     const averageGoalieRating = getAverageGoalieRating();
     const simulations = preparedMatches.map(item => ({
-      id: item.match.id,
+      ...item,
       result: simulateMatch(item.homeLineup, item.awayLineup, averageGoalieRating)
     }));
 
     setSimulationBusy(true);
     setStatus(`Simuluji ${label}...`);
 
-    const responses = await Promise.all(simulations.map(simulation =>
-      db
-        .from("hockey_matches")
-        .update(simulation.result)
-        .eq("id", simulation.id)
-        .is("home_result", null)
-        .is("away_result", null)
-    ));
-    const failedResponse = responses.find(response => response.error);
-    if (failedResponse?.error) throw failedResponse.error;
+    for (const simulation of simulations) {
+      await persistSimulation(simulation);
+    }
+
+    await recalculateAllRatings();
 
     await loadMatches();
     setStatus(`Odehráno: ${label}.`, "ok");
@@ -382,6 +393,346 @@ async function simulateMatches(matchesToPlay, label) {
   } finally {
     setSimulationBusy(false);
   }
+}
+
+async function persistSimulation(simulation) {
+  const { match, homeLineup, awayLineup, result } = simulation;
+  const scope = match.competition_type === "league" ? "league" : "national";
+  const playerRows = [
+    ...createSkaterStatsRows(match, homeLineup, result.home_shots, result.home_goals, scope),
+    ...createSkaterStatsRows(match, awayLineup, result.away_shots, result.away_goals, scope)
+  ];
+  const goalieRows = [
+    createGoalieStatsRow(
+      match,
+      homeLineup,
+      result.away_shots,
+      result.away_goals,
+      scope
+    ),
+    createGoalieStatsRow(
+      match,
+      awayLineup,
+      result.home_shots,
+      result.home_goals,
+      scope
+    )
+  ];
+
+  await clearMatchStats(match.id);
+
+  try {
+    const [playersResponse, goaliesResponse] = await Promise.all([
+      db.from("hockey_player_match_stats").insert(playerRows),
+      db.from("hockey_goalie_match_stats").insert(goalieRows)
+    ]);
+    if (playersResponse.error) throw playersResponse.error;
+    if (goaliesResponse.error) throw goaliesResponse.error;
+
+    const { error } = await db
+      .from("hockey_matches")
+      .update(result)
+      .eq("id", match.id)
+      .is("home_result", null)
+      .is("away_result", null);
+    if (error) throw error;
+  } catch (error) {
+    await clearMatchStats(match.id);
+    throw error;
+  }
+}
+
+function createSkaterStatsRows(match, lineup, shots, goals, scope) {
+  const skaters = SKATER_POSITIONS.map(position => lineup.playersByPosition.get(position));
+  const stats = skaters.map(player => ({
+    player,
+    shots: 0,
+    goals: 0,
+    assists: 0
+  }));
+  const goalEvents = [];
+
+  for (let goal = 0; goal < goals; goal += 1) {
+    const scorerIndex = weightedIndex(stats, item => playerEventWeight(item.player, "goal"));
+    stats[scorerIndex].goals += 1;
+    stats[scorerIndex].shots += 1;
+    goalEvents.push(scorerIndex);
+  }
+
+  for (let shot = goals; shot < shots; shot += 1) {
+    const shooterIndex = weightedIndex(stats, item => playerEventWeight(item.player, "shot"));
+    stats[shooterIndex].shots += 1;
+  }
+
+  goalEvents.forEach(scorerIndex => {
+    const assistCountRoll = Math.random();
+    const assistCount = assistCountRoll < 0.12 ? 0 : assistCountRoll < 0.48 ? 1 : 2;
+    const available = stats
+      .map((item, index) => ({ item, index }))
+      .filter(entry => entry.index !== scorerIndex);
+
+    for (let assist = 0; assist < assistCount && available.length; assist += 1) {
+      const selectedIndex = weightedIndex(available, entry => playerEventWeight(entry.item.player, "assist"));
+      const [selected] = available.splice(selectedIndex, 1);
+      selected.item.assists += 1;
+    }
+  });
+
+  return stats.map(item => ({
+    match_id: match.id,
+    player_id: item.player.id,
+    team_id: lineup.team.id,
+    scope,
+    season: Number(match.season),
+    games: 1,
+    goals: item.goals,
+    assists: item.assists,
+    shots: item.shots
+  }));
+}
+
+function createGoalieStatsRow(match, lineup, shotsAgainst, goalsAgainst, scope) {
+  return {
+    match_id: match.id,
+    player_id: lineup.playersByPosition.get("G").id,
+    team_id: lineup.team.id,
+    scope,
+    season: Number(match.season),
+    games: 1,
+    shots_against: shotsAgainst,
+    goals_against: goalsAgainst
+  };
+}
+
+function playerEventWeight(player, eventType) {
+  const positionWeight = {
+    goal: { C: 1.2, LK: 1.25, PK: 1.25, LO: 0.65, PO: 0.65 },
+    assist: { C: 1.25, LK: 1.05, PK: 1.05, LO: 0.85, PO: 0.85 },
+    shot: { C: 1.1, LK: 1.2, PK: 1.2, LO: 0.75, PO: 0.75 }
+  };
+  return (0.5 + Number(player.current_rating || 1) / 100)
+    * (positionWeight[eventType]?.[player.position] || 1);
+}
+
+function weightedIndex(items, getWeight) {
+  const weights = items.map(item => Math.max(0.001, Number(getWeight(item))));
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  let roll = Math.random() * total;
+
+  for (let index = 0; index < weights.length; index += 1) {
+    roll -= weights[index];
+    if (roll <= 0) return index;
+  }
+
+  return weights.length - 1;
+}
+
+async function clearMatchStats(matchId) {
+  const [playersResponse, goaliesResponse] = await Promise.all([
+    db.from("hockey_player_match_stats").delete().eq("match_id", matchId),
+    db.from("hockey_goalie_match_stats").delete().eq("match_id", matchId)
+  ]);
+  if (playersResponse.error) throw playersResponse.error;
+  if (goaliesResponse.error) throw goaliesResponse.error;
+}
+
+async function resetMatch(match) {
+  const teamsById = new Map(state.teams.map(team => [String(team.id), team]));
+  const homeTeam = teamsById.get(String(match.home_team_id));
+  const awayTeam = teamsById.get(String(match.away_team_id));
+  const confirmed = window.confirm(
+    `Resetovat zápas ${homeTeam?.short_name || homeTeam?.name || "Domácí"} – ${awayTeam?.short_name || awayTeam?.name || "Hosté"}? Výsledek i individuální statistiky budou odstraněny.`
+  );
+  if (!confirmed) return;
+
+  try {
+    setSimulationBusy(true);
+    setStatus("Resetuji zápas a přepočítávám ratingy...");
+    await clearMatchStats(match.id);
+
+    const { error } = await db.from("hockey_matches").update({
+      home_attack: null,
+      home_defense: null,
+      away_attack: null,
+      away_defense: null,
+      home_shots: 0,
+      away_shots: 0,
+      home_goals: 0,
+      away_goals: 0,
+      home_result: null,
+      away_result: null,
+      // Sloupec je ve starším schématu povinný; stav rozehranosti určují výsledkové kódy.
+      played_at: new Date().toISOString()
+    }).eq("id", match.id);
+    if (error) throw error;
+
+    await recalculateAllRatings();
+    await loadMatches();
+    setStatus("Zápas byl resetován a je znovu připraven k odehrání.", "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(`Zápas nelze resetovat: ${error.message}`, "error");
+  } finally {
+    setSimulationBusy(false);
+  }
+}
+
+async function recalculateAllRatings() {
+  const [playersResponse, skaterStatsResponse, goalieStatsResponse] = await Promise.all([
+    db.from("hockey_players").select("id, name, position, base_rating, raw_rating, current_rating, sort_rating"),
+    db.from("hockey_player_stats_season").select("player_id, games, goals, assists, points"),
+    db.from("hockey_goalie_stats_season").select("player_id, games, shots_against, goals_against")
+  ]);
+  if (playersResponse.error) throw playersResponse.error;
+  if (skaterStatsResponse.error) throw skaterStatsResponse.error;
+  if (goalieStatsResponse.error) throw goalieStatsResponse.error;
+
+  const players = playersResponse.data || [];
+  players.forEach(player => {
+    if (Number(player.base_rating) < 1 || Number(player.base_rating) > 100) {
+      player.base_rating = randomInitialRating();
+    }
+  });
+
+  const skaterStats = aggregateStats(skaterStatsResponse.data || [], row => ({
+    games: Number(row.games || 0),
+    goals: Number(row.goals || 0),
+    assists: Number(row.assists || 0),
+    points: Number(row.points || 0)
+  }));
+  const goalieStats = aggregateStats(goalieStatsResponse.data || [], row => ({
+    games: Number(row.games || 0),
+    shotsAgainst: Number(row.shots_against || 0),
+    goalsAgainst: Number(row.goals_against || 0)
+  }));
+
+  const skaterUpdates = calculateRankedRatings(
+    players.filter(player => player.position !== "G"),
+    player => {
+      const stats = skaterStats.get(String(player.id)) || {
+        games: 0, goals: 0, assists: 0, points: 0
+      };
+      return {
+        goals: stats.goals,
+        assists: stats.assists,
+        games: stats.games,
+        pointsPerGame: stats.games ? stats.points / stats.games : 0,
+        initial: Number(player.base_rating)
+      };
+    },
+    { goals: 0.22, assists: 0.18, games: 0.1, pointsPerGame: 0.35, initial: 0.15 }
+  );
+  const goalieUpdates = calculateRankedRatings(
+    players.filter(player => player.position === "G"),
+    player => {
+      const stats = goalieStats.get(String(player.id)) || {
+        games: 0, shotsAgainst: 0, goalsAgainst: 0
+      };
+      return {
+        savePercentage: stats.shotsAgainst
+          ? (stats.shotsAgainst - stats.goalsAgainst) / stats.shotsAgainst
+          : 0,
+        goalsAgainstAverage: stats.games ? stats.goalsAgainst / stats.games : 99,
+        games: stats.games,
+        initial: Number(player.base_rating)
+      };
+    },
+    { savePercentage: 0.45, goalsAgainstAverage: -0.25, games: 0.15, initial: 0.15 }
+  );
+
+  const updates = [...skaterUpdates, ...goalieUpdates];
+  for (let start = 0; start < updates.length; start += 20) {
+    const responses = await Promise.all(updates.slice(start, start + 20).map(item =>
+      db.from("hockey_players").update({
+        base_rating: item.baseRating,
+        raw_rating: item.rawRating,
+        current_rating: item.currentRating,
+        sort_rating: item.sortRating
+      }).eq("id", item.id)
+    ));
+    const failedResponse = responses.find(response => response.error);
+    if (failedResponse?.error) throw failedResponse.error;
+  }
+}
+
+function aggregateStats(rows, project) {
+  const totals = new Map();
+  rows.forEach(row => {
+    const key = String(row.player_id);
+    const values = project(row);
+    const current = totals.get(key) || Object.fromEntries(
+      Object.keys(values).map(name => [name, 0])
+    );
+    Object.entries(values).forEach(([name, value]) => {
+      current[name] += Number(value || 0);
+    });
+    totals.set(key, current);
+  });
+  return totals;
+}
+
+function calculateRankedRatings(players, getMetrics, weights) {
+  if (!players.length) return [];
+  const entries = players.map(player => ({ player, metrics: getMetrics(player), score: 0 }));
+
+  Object.entries(weights).forEach(([metric, weight]) => {
+    const values = entries.map(entry => Number(entry.metrics[metric] || 0));
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    entries.forEach(entry => {
+      const value = Number(entry.metrics[metric] || 0);
+      const normalized = max === min ? 0.5 : (value - min) / (max - min);
+      entry.score += Math.abs(weight) * (weight < 0 ? 1 - normalized : normalized);
+    });
+  });
+
+  entries.sort((first, second) =>
+    second.score - first.score
+    || Number(second.player.base_rating) - Number(first.player.base_rating)
+    || String(first.player.name).localeCompare(String(second.player.name), "cs")
+  );
+
+  return entries.map((entry, index) => {
+    const currentRating = entries.length === 1
+      ? 100
+      : Math.round(100 - index * 99 / (entries.length - 1));
+    return {
+      id: entry.player.id,
+      baseRating: Number(entry.player.base_rating),
+      rawRating: round(1 + entry.score * 99, 3),
+      currentRating,
+      sortRating: currentRating + (entries.length - index) / 1000000
+    };
+  });
+}
+
+async function initializeMissingRatings(players) {
+  const updates = players
+    .filter(player => Number(player.base_rating) < 1 || Number(player.current_rating) < 1)
+    .map(player => {
+      const initialRating = randomInitialRating();
+      Object.assign(player, {
+        base_rating: initialRating,
+        raw_rating: initialRating,
+        current_rating: initialRating,
+        sort_rating: initialRating + Math.random() / 1000
+      });
+      return db.from("hockey_players").update({
+        base_rating: player.base_rating,
+        raw_rating: player.raw_rating,
+        current_rating: player.current_rating,
+        sort_rating: player.sort_rating
+      }).eq("id", player.id);
+    });
+  if (!updates.length) return players;
+  const responses = await Promise.all(updates);
+  const failedResponse = responses.find(response => response.error);
+  if (failedResponse?.error) throw failedResponse.error;
+  return players;
+}
+
+function randomInitialRating() {
+  return Math.floor(Math.random() * 100) + 1;
 }
 
 function getCachedLineup(team, cache) {
@@ -420,14 +771,14 @@ function getLineupRating(lineup, positions) {
   const ratings = positions.map(position =>
     Number(lineup.playersByPosition.get(position)?.current_rating || 0)
   );
-  return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+  return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length / 100;
 }
 
 function getAverageGoalieRating() {
   const goalies = state.players.filter(player => player.position === "G" && player.team_id);
   if (!goalies.length) return 0;
   return goalies.reduce((sum, goalie) => sum + Number(goalie.current_rating || 0), 0)
-    / goalies.length;
+    / goalies.length / 100;
 }
 
 function simulateMatch(homeLineup, awayLineup, averageGoalieRating) {
@@ -435,8 +786,8 @@ function simulateMatch(homeLineup, awayLineup, averageGoalieRating) {
   const homeDefense = getLineupRating(homeLineup, DEFENSE_POSITIONS);
   const awayAttack = getLineupRating(awayLineup, ATTACK_POSITIONS);
   const awayDefense = getLineupRating(awayLineup, DEFENSE_POSITIONS);
-  const homeGoalie = Number(homeLineup.playersByPosition.get("G").current_rating || 0);
-  const awayGoalie = Number(awayLineup.playersByPosition.get("G").current_rating || 0);
+  const homeGoalie = Number(homeLineup.playersByPosition.get("G").current_rating || 0) / 100;
+  const awayGoalie = Number(awayLineup.playersByPosition.get("G").current_rating || 0) / 100;
 
   let homeShots = generateShots(homeAttack, awayDefense, true);
   let awayShots = generateShots(awayAttack, homeDefense, false);

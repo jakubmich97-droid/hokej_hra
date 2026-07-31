@@ -13,7 +13,6 @@ const state = {
   statsRows: [],
   statsRange: "season",
   statsMap: new Map(),
-  rankings: new Map(),
   rosterSchemaReady: false,
   pendingNationality: "",
   pendingBirthInputMode: "year"
@@ -76,7 +75,7 @@ async function loadPlayers() {
     return;
   }
 
-  state.players = playersResponse.data || [];
+  state.players = await initializeMissingRatings(playersResponse.data || []);
   state.teams = teamsResponse.data || [];
   state.statsRows = statsResponse.data || [];
   state.rosterSchemaReady = !rosterSchemaResponse.error;
@@ -135,8 +134,6 @@ function applyFilters() {
 
 function render() {
   state.statsMap = aggregatePlayerStats();
-  state.rankings = buildPlayerRankings();
-
   els.playersCount.textContent = state.players.length;
   els.activePlayersCount.textContent = state.players.filter(player => player.active).length;
   els.shownPlayersCount.textContent = state.filteredPlayers.length;
@@ -158,17 +155,12 @@ function renderPlayersTable() {
     return;
   }
 
-  const displayPlayers = [...state.filteredPlayers].sort((first, second) => {
-    const firstRank = state.rankings.get(String(first.id)) ?? Number.MAX_SAFE_INTEGER;
-    const secondRank = state.rankings.get(String(second.id)) ?? Number.MAX_SAFE_INTEGER;
-    return firstRank - secondRank || String(first.name).localeCompare(String(second.name), "cs");
-  });
+  const displayPlayers = [...state.filteredPlayers].sort(comparePlayersByRating);
 
   els.playersTable.innerHTML = displayPlayers.map(player => {
     const age = CURRENT_SEASON - Number(player.birth_year);
     const stats = state.statsMap.get(String(player.id)) || createEmptyPlayerStats();
-    const ranking = state.rankings.get(String(player.id));
-    const goalsPerGame = stats.games > 0 ? stats.goals / stats.games : 0;
+    const pointsPerGame = stats.games > 0 ? stats.points / stats.games : 0;
 
     return `
       <tr>
@@ -182,12 +174,8 @@ function renderPlayersTable() {
         <td>${stats.goals}</td>
         <td>${stats.assists}</td>
         <td><strong class="points-value">${stats.points}</strong></td>
-        <td>${formatNumber(goalsPerGame, 3)}</td>
-        <td>
-          ${ranking
-            ? `<span class="ranking-badge">#${ranking}</span>`
-            : `<span class="ranking-badge empty">—</span>`}
-        </td>
+        <td>${formatNumber(pointsPerGame, 3)}</td>
+        <td><span class="ranking-badge">${formatRating(player.current_rating)}</span></td>
         <td>
           <span class="tag ${player.active ? "" : "off"}">
             ${player.active ? "Aktivní" : "Důchod"}
@@ -227,35 +215,6 @@ function aggregatePlayerStats() {
   });
 
   return totals;
-}
-
-function buildPlayerRankings() {
-  const rankedPlayers = state.players
-    .map(player => ({
-      player,
-      stats: state.statsMap.get(String(player.id)) || createEmptyPlayerStats()
-    }))
-    .filter(item => item.stats.games > 0)
-    .sort((first, second) =>
-      second.stats.points - first.stats.points
-      || second.stats.goals - first.stats.goals
-      || second.stats.assists - first.stats.assists
-      || String(first.player.name).localeCompare(String(second.player.name), "cs")
-    );
-
-  const rankings = new Map();
-  let previousScore = "";
-  let previousRank = 0;
-
-  rankedPlayers.forEach((item, index) => {
-    const score = `${item.stats.points}|${item.stats.goals}|${item.stats.assists}`;
-    const rank = score === previousScore ? previousRank : index + 1;
-    rankings.set(String(item.player.id), rank);
-    previousScore = score;
-    previousRank = rank;
-  });
-
-  return rankings;
 }
 
 function createEmptyPlayerStats() {
@@ -552,9 +511,8 @@ els.playerBatchForm.addEventListener("submit", async event => {
         throw new Error(`Řádek ${index + 1} není kompletně vyplněný.`);
       }
 
-      const sortRating = generateUniqueSortRating(
-        `${name}|${state.pendingNationality}|${birthYear}|${position}|${crypto.randomUUID()}`
-      );
+      const initialRating = randomInitialRating();
+      const sortRating = generateUniqueSortRating(initialRating);
 
       return {
         name,
@@ -562,9 +520,9 @@ els.playerBatchForm.addEventListener("submit", async event => {
         birth_year: birthYear,
         position,
 
-        base_rating: 0,
-        raw_rating: 0,
-        current_rating: 0,
+        base_rating: initialRating,
+        raw_rating: initialRating,
+        current_rating: initialRating,
         sort_rating: sortRating,
 
         active: true,
@@ -652,30 +610,56 @@ function fillPlayerEditForm(player) {
   form.retired_season.value = player.retired_season || "";
 }
 
-function generateUniqueSortRating(seed) {
-  let value = seededRandom(seed);
+function generateUniqueSortRating(rating) {
+  let value = Number(rating) + Math.random() / 1000;
 
   const existingRatings = new Set(
     state.players.map(player => Number(player.sort_rating).toFixed(6))
   );
 
   while (existingRatings.has(value.toFixed(6))) {
-    value = seededRandom(`${seed}|${crypto.randomUUID()}`);
+    value = Number(rating) + Math.random() / 1000;
   }
 
   return round(value, 6);
 }
 
-function seededRandom(seed) {
-  let hash = 0;
+function randomInitialRating() {
+  return Math.floor(Math.random() * 100) + 1;
+}
 
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
-  }
+async function initializeMissingRatings(players) {
+  const updates = players
+    .filter(player => Number(player.base_rating) < 1 || Number(player.current_rating) < 1)
+    .map(player => {
+      const initialRating = randomInitialRating();
+      Object.assign(player, {
+        base_rating: initialRating,
+        raw_rating: initialRating,
+        current_rating: initialRating,
+        sort_rating: initialRating + Math.random() / 1000
+      });
+      return db.from("hockey_players").update({
+        base_rating: player.base_rating,
+        raw_rating: player.raw_rating,
+        current_rating: player.current_rating,
+        sort_rating: player.sort_rating
+      }).eq("id", player.id);
+    });
 
-  const normalized = (Math.abs(hash) % 999999) / 999999;
+  if (!updates.length) return players;
+  const responses = await Promise.all(updates);
+  const failedResponse = responses.find(response => response.error);
+  if (failedResponse?.error) throw failedResponse.error;
+  return players;
+}
 
-  return 0.000001 + normalized * 0.999998;
+function formatRating(value) {
+  return Math.round(clamp(Number(value || 1), 1, 100));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function round(value, decimals) {

@@ -964,6 +964,18 @@ select:focus {
   box-shadow: 0 0 20px rgba(31, 166, 255, 0.14);
 }
 
+.reset-match-btn {
+  border-color: rgba(255, 76, 126, 0.55);
+  color: #ff9ab7;
+  white-space: nowrap;
+}
+
+.reset-match-btn:hover {
+  background: rgba(255, 76, 126, 0.14);
+  border-color: #ff4c7e;
+  color: #ffd4df;
+}
+
 .game-dialog {
   width: min(760px, calc(100% - 28px));
   max-height: calc(100vh - 40px);

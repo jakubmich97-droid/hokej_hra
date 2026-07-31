@@ -68,7 +68,7 @@ async function loadGoalies() {
     return;
   }
 
-  state.goalies = goaliesResponse.data || [];
+  state.goalies = await initializeMissingRatings(goaliesResponse.data || []);
   state.teams = teamsResponse.data || [];
   state.statsRows = statsResponse.data || [];
   state.rosterSchemaReady = !rosterSchemaResponse.error;
@@ -181,8 +181,8 @@ function renderGoaliesTable() {
         <td>${age}</td>
         <td>G</td>
         <td>${renderGoalieTeam(goalie.team_id)}</td>
-        <td>${formatNumber(goalie.base_rating, 6)}</td>
-        <td>${formatNumber(goalie.current_rating, 6)}</td>
+        <td>${formatRating(goalie.base_rating)}</td>
+        <td><span class="ranking-badge">${formatRating(goalie.current_rating)}</span></td>
         <td>${stats.games}</td>
         <td>${stats.shotsAgainst}</td>
         <td>${stats.goalsAgainst}</td>
@@ -300,17 +300,17 @@ els.goalieBatchForm.addEventListener("submit", async event => {
         throw new Error(`Řádek ${index + 1} není kompletně vyplněný.`);
       }
 
+      const initialRating = randomInitialRating();
+
       return {
         name,
         nationality: state.pendingNationality,
         birth_year: birthYear,
         position: "G",
-        base_rating: 0,
-        raw_rating: 0,
-        current_rating: 0,
-        sort_rating: generateUniqueSortRating(
-          `${name}|${state.pendingNationality}|${birthYear}|G|${crypto.randomUUID()}`
-        ),
+        base_rating: initialRating,
+        raw_rating: initialRating,
+        current_rating: initialRating,
+        sort_rating: generateUniqueSortRating(initialRating),
         active: true,
         retired_season: null
       };
@@ -517,28 +517,51 @@ function fillGoalieEditForm(goalie) {
   form.retired_season.value = goalie.retired_season || "";
 }
 
-function generateUniqueSortRating(seed) {
-  let value = seededRandom(seed);
+function generateUniqueSortRating(rating) {
+  let value = Number(rating) + Math.random() / 1000;
   const existingRatings = new Set(
     state.goalies.map(goalie => Number(goalie.sort_rating).toFixed(6))
   );
 
   while (existingRatings.has(value.toFixed(6))) {
-    value = seededRandom(`${seed}|${crypto.randomUUID()}`);
+    value = Number(rating) + Math.random() / 1000;
   }
 
   return round(value, 6);
 }
 
-function seededRandom(seed) {
-  let hash = 0;
+function randomInitialRating() {
+  return Math.floor(Math.random() * 100) + 1;
+}
 
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = ((hash << 5) - hash + seed.charCodeAt(index)) | 0;
-  }
+async function initializeMissingRatings(goalies) {
+  const updates = goalies
+    .filter(goalie => Number(goalie.base_rating) < 1 || Number(goalie.current_rating) < 1)
+    .map(goalie => {
+      const initialRating = randomInitialRating();
+      Object.assign(goalie, {
+        base_rating: initialRating,
+        raw_rating: initialRating,
+        current_rating: initialRating,
+        sort_rating: initialRating + Math.random() / 1000
+      });
+      return db.from("hockey_players").update({
+        base_rating: goalie.base_rating,
+        raw_rating: goalie.raw_rating,
+        current_rating: goalie.current_rating,
+        sort_rating: goalie.sort_rating
+      }).eq("id", goalie.id);
+    });
 
-  const normalized = (Math.abs(hash) % 999999) / 999999;
-  return 0.000001 + normalized * 0.999998;
+  if (!updates.length) return goalies;
+  const responses = await Promise.all(updates);
+  const failedResponse = responses.find(response => response.error);
+  if (failedResponse?.error) throw failedResponse.error;
+  return goalies;
+}
+
+function formatRating(value) {
+  return Math.round(Math.max(1, Math.min(100, Number(value || 1))));
 }
 
 function getSavePercentageClass(value) {

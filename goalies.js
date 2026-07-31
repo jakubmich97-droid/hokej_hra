@@ -7,7 +7,9 @@ const CURRENT_SEASON = 2026;
 const state = {
   goalies: [],
   filteredGoalies: [],
-  seasonStats: new Map(),
+  statsRows: [],
+  statsRange: "season",
+  statsMap: new Map(),
   pendingNationality: ""
 };
 
@@ -24,7 +26,9 @@ const els = {
   shownGoaliesCount: document.querySelector("#shownGoaliesCount"),
   goaliesTable: document.querySelector("#goaliesTable"),
   goalieEditDialog: document.querySelector("#goalieEditDialog"),
-  goalieEditForm: document.querySelector("#goalieEditForm")
+  goalieEditForm: document.querySelector("#goalieEditForm"),
+  goalieStatsKicker: document.querySelector("#goalieStatsKicker"),
+  statsRangeButtons: [...document.querySelectorAll("[data-stats-range]")]
 };
 
 function setStatus(message, type = "muted") {
@@ -44,7 +48,6 @@ async function loadGoalies() {
     db
       .from("hockey_goalie_stats_season")
       .select("player_id, scope, season, games, shots_against, goals_against, save_percentage")
-      .eq("season", CURRENT_SEASON)
   ]);
 
   if (goaliesResponse.error) {
@@ -53,7 +56,7 @@ async function loadGoalies() {
   }
 
   state.goalies = goaliesResponse.data || [];
-  state.seasonStats = aggregateSeasonStats(statsResponse.data || []);
+  state.statsRows = statsResponse.data || [];
   applyFilters();
 
   if (statsResponse.error) {
@@ -64,13 +67,16 @@ async function loadGoalies() {
     return;
   }
 
-  setStatus(`Brankáři a statistiky sezóny ${CURRENT_SEASON} načteny.`, "ok");
+  setStatus(`Brankáři a statistiky načteny (${getStatsRangeLabel()}).`, "ok");
 }
 
-function aggregateSeasonStats(rows) {
+function aggregateGoalieStats() {
   const totals = new Map();
+  const relevantRows = state.statsRange === "season"
+    ? state.statsRows.filter(row => Number(row.season) === CURRENT_SEASON)
+    : state.statsRows;
 
-  rows.forEach(row => {
+  relevantRows.forEach(row => {
     const key = String(row.player_id);
     const current = totals.get(key) || {
       games: 0,
@@ -108,9 +114,14 @@ function applyFilters() {
 }
 
 function render() {
+  state.statsMap = aggregateGoalieStats();
+
   els.goaliesCount.textContent = state.goalies.length;
   els.activeGoaliesCount.textContent = state.goalies.filter(goalie => goalie.active).length;
   els.shownGoaliesCount.textContent = state.filteredGoalies.length;
+  els.goalieStatsKicker.textContent = state.statsRange === "season"
+    ? `Crease roster · Season ${CURRENT_SEASON}`
+    : "Crease roster · Total";
   renderGoaliesTable();
 }
 
@@ -124,7 +135,7 @@ function renderGoaliesTable() {
 
   els.goaliesTable.innerHTML = state.filteredGoalies.map(goalie => {
     const age = CURRENT_SEASON - Number(goalie.birth_year);
-    const stats = state.seasonStats.get(String(goalie.id)) || {
+    const stats = state.statsMap.get(String(goalie.id)) || {
       games: 0,
       shotsAgainst: 0,
       goalsAgainst: 0
@@ -167,6 +178,10 @@ function renderGoaliesTable() {
       </tr>
     `;
   }).join("");
+}
+
+function getStatsRangeLabel() {
+  return state.statsRange === "season" ? `sezóna ${CURRENT_SEASON}` : "Total";
 }
 
 els.goalieBatchSetupForm.addEventListener("submit", event => {
@@ -310,6 +325,17 @@ els.goalieEditDialog.addEventListener("click", event => {
 
 els.goalieEditDialog.querySelectorAll("[data-close-dialog]").forEach(button => {
   button.addEventListener("click", () => els.goalieEditDialog.close());
+});
+
+els.statsRangeButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    state.statsRange = button.dataset.statsRange;
+    els.statsRangeButtons.forEach(item => {
+      item.classList.toggle("active", item === button);
+    });
+    render();
+    setStatus(`Zobrazeny statistiky: ${getStatsRangeLabel()}.`, "ok");
+  });
 });
 
 function renderGoalieRows(count) {

@@ -164,14 +164,20 @@
     <section class="card">
       <div class="section-head">
         <div>
-          <span class="section-kicker">Active roster</span>
+          <span id="playerStatsKicker" class="section-kicker">Active roster · Season 2026</span>
           <h2>Databáze hráčů</h2>
         </div>
-        <span class="pill live">Players</span>
+        <div class="section-tools">
+          <div class="range-switch" aria-label="Období statistik">
+            <button class="active" type="button" data-stats-range="season">Aktuální sezóna</button>
+            <button type="button" data-stats-range="total">Total</button>
+          </div>
+          <span class="pill live">Players</span>
+        </div>
       </div>
 
       <div class="table-wrap">
-        <table>
+        <table class="players-stats-table">
           <thead>
             <tr>
               <th>Jméno</th>
@@ -179,10 +185,12 @@
               <th>Rok</th>
               <th>Věk</th>
               <th>Pozice</th>
-              <th>Base</th>
-              <th>Raw</th>
-              <th>Current</th>
-              <th>Sort</th>
+              <th>Zápasy</th>
+              <th>Góly</th>
+              <th>Asistence</th>
+              <th>Body</th>
+              <th>Góly / zápas</th>
+              <th>Ranking</th>
               <th>Stav</th>
               <th>Akce</th>
             </tr>
@@ -190,7 +198,7 @@
 
           <tbody id="playersTable">
             <tr>
-              <td colspan="11">Načítám hráče...</td>
+              <td colspan="13">Načítám hráče...</td>
             </tr>
           </tbody>
         </table>

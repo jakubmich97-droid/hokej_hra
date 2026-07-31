@@ -8,6 +8,10 @@ const CURRENT_SEASON = 2026;
 const state = {
   players: [],
   filteredPlayers: [],
+  statsRows: [],
+  statsRange: "season",
+  statsMap: new Map(),
+  rankings: new Map(),
   pendingNationality: ""
 };
 
@@ -28,7 +32,9 @@ const els = {
   shownPlayersCount: document.querySelector("#shownPlayersCount"),
   playersTable: document.querySelector("#playersTable"),
   playerEditDialog: document.querySelector("#playerEditDialog"),
-  playerEditForm: document.querySelector("#playerEditForm")
+  playerEditForm: document.querySelector("#playerEditForm"),
+  playerStatsKicker: document.querySelector("#playerStatsKicker"),
+  statsRangeButtons: [...document.querySelectorAll("[data-stats-range]")]
 };
 
 function setStatus(message, type = "muted") {
@@ -37,23 +43,37 @@ function setStatus(message, type = "muted") {
 }
 
 async function loadPlayers() {
-  setStatus("Načítám hráče...");
+  setStatus("Načítám hráče a statistiky...");
 
-  const { data, error } = await db
-    .from("hockey_players")
-    .select("*")
-    .neq("position", "G")
-    .order("sort_rating", { ascending: false });
+  const [playersResponse, statsResponse] = await Promise.all([
+    db
+      .from("hockey_players")
+      .select("*")
+      .neq("position", "G")
+      .order("sort_rating", { ascending: false }),
+    db
+      .from("hockey_player_stats_season")
+      .select("player_id, scope, season, games, goals, assists, shots, points, goals_per_game")
+  ]);
 
-  if (error) {
-    setStatus(`Chyba při načítání hráčů: ${error.message}`, "error");
+  if (playersResponse.error) {
+    setStatus(`Chyba při načítání hráčů: ${playersResponse.error.message}`, "error");
     return;
   }
 
-  state.players = data || [];
+  state.players = playersResponse.data || [];
+  state.statsRows = statsResponse.data || [];
   applyFilters();
 
-  setStatus("Hráči načteni.", "ok");
+  if (statsResponse.error) {
+    setStatus(
+      `Hráči načteni, ale statistiky se nepodařilo načíst: ${statsResponse.error.message}`,
+      "error"
+    );
+    return;
+  }
+
+  setStatus(`Hráči a statistiky načteni (${getStatsRangeLabel()}).`, "ok");
 }
 
 function applyFilters() {
@@ -84,9 +104,15 @@ function applyFilters() {
 }
 
 function render() {
+  state.statsMap = aggregatePlayerStats();
+  state.rankings = buildPlayerRankings();
+
   els.playersCount.textContent = state.players.length;
   els.activePlayersCount.textContent = state.players.filter(player => player.active).length;
   els.shownPlayersCount.textContent = state.filteredPlayers.length;
+  els.playerStatsKicker.textContent = state.statsRange === "season"
+    ? `Active roster · Season ${CURRENT_SEASON}`
+    : "Active roster · Total";
 
   renderPlayersTable();
 }
@@ -95,14 +121,23 @@ function renderPlayersTable() {
   if (!state.filteredPlayers.length) {
     els.playersTable.innerHTML = `
       <tr>
-        <td colspan="11">Nenalezen žádný hráč.</td>
+        <td colspan="13">Nenalezen žádný hráč.</td>
       </tr>
     `;
     return;
   }
 
-  els.playersTable.innerHTML = state.filteredPlayers.map(player => {
+  const displayPlayers = [...state.filteredPlayers].sort((first, second) => {
+    const firstRank = state.rankings.get(String(first.id)) ?? Number.MAX_SAFE_INTEGER;
+    const secondRank = state.rankings.get(String(second.id)) ?? Number.MAX_SAFE_INTEGER;
+    return firstRank - secondRank || String(first.name).localeCompare(String(second.name), "cs");
+  });
+
+  els.playersTable.innerHTML = displayPlayers.map(player => {
     const age = CURRENT_SEASON - Number(player.birth_year);
+    const stats = state.statsMap.get(String(player.id)) || createEmptyPlayerStats();
+    const ranking = state.rankings.get(String(player.id));
+    const goalsPerGame = stats.games > 0 ? stats.goals / stats.games : 0;
 
     return `
       <tr>
@@ -111,10 +146,16 @@ function renderPlayersTable() {
         <td>${player.birth_year}</td>
         <td>${age}</td>
         <td>${escapeHtml(player.position)}</td>
-        <td>${formatNumber(player.base_rating, 6)}</td>
-        <td>${formatNumber(player.raw_rating, 6)}</td>
-        <td>${formatNumber(player.current_rating, 6)}</td>
-        <td>${formatNumber(player.sort_rating, 6)}</td>
+        <td>${stats.games}</td>
+        <td>${stats.goals}</td>
+        <td>${stats.assists}</td>
+        <td><strong class="points-value">${stats.points}</strong></td>
+        <td>${formatNumber(goalsPerGame, 3)}</td>
+        <td>
+          ${ranking
+            ? `<span class="ranking-badge">#${ranking}</span>`
+            : `<span class="ranking-badge empty">—</span>`}
+        </td>
         <td>
           <span class="tag ${player.active ? "" : "off"}">
             ${player.active ? "Aktivní" : "Důchod"}
@@ -133,6 +174,70 @@ function renderPlayersTable() {
       </tr>
     `;
   }).join("");
+}
+
+function aggregatePlayerStats() {
+  const totals = new Map();
+  const relevantRows = state.statsRange === "season"
+    ? state.statsRows.filter(row => Number(row.season) === CURRENT_SEASON)
+    : state.statsRows;
+
+  relevantRows.forEach(row => {
+    const key = String(row.player_id);
+    const current = totals.get(key) || createEmptyPlayerStats();
+
+    current.games += Number(row.games || 0);
+    current.goals += Number(row.goals || 0);
+    current.assists += Number(row.assists || 0);
+    current.shots += Number(row.shots || 0);
+    current.points = current.goals + current.assists;
+    totals.set(key, current);
+  });
+
+  return totals;
+}
+
+function buildPlayerRankings() {
+  const rankedPlayers = state.players
+    .map(player => ({
+      player,
+      stats: state.statsMap.get(String(player.id)) || createEmptyPlayerStats()
+    }))
+    .filter(item => item.stats.games > 0)
+    .sort((first, second) =>
+      second.stats.points - first.stats.points
+      || second.stats.goals - first.stats.goals
+      || second.stats.assists - first.stats.assists
+      || String(first.player.name).localeCompare(String(second.player.name), "cs")
+    );
+
+  const rankings = new Map();
+  let previousScore = "";
+  let previousRank = 0;
+
+  rankedPlayers.forEach((item, index) => {
+    const score = `${item.stats.points}|${item.stats.goals}|${item.stats.assists}`;
+    const rank = score === previousScore ? previousRank : index + 1;
+    rankings.set(String(item.player.id), rank);
+    previousScore = score;
+    previousRank = rank;
+  });
+
+  return rankings;
+}
+
+function createEmptyPlayerStats() {
+  return {
+    games: 0,
+    goals: 0,
+    assists: 0,
+    shots: 0,
+    points: 0
+  };
+}
+
+function getStatsRangeLabel() {
+  return state.statsRange === "season" ? `sezóna ${CURRENT_SEASON}` : "Total";
 }
 
 els.playersTable.addEventListener("click", event => {
@@ -201,6 +306,17 @@ els.playerEditDialog.addEventListener("click", event => {
 
 els.playerEditDialog.querySelectorAll("[data-close-dialog]").forEach(button => {
   button.addEventListener("click", () => els.playerEditDialog.close());
+});
+
+els.statsRangeButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    state.statsRange = button.dataset.statsRange;
+    els.statsRangeButtons.forEach(item => {
+      item.classList.toggle("active", item === button);
+    });
+    render();
+    setStatus(`Zobrazeny statistiky: ${getStatsRangeLabel()}.`, "ok");
+  });
 });
 
 els.playerBatchSetupForm.addEventListener("submit", event => {

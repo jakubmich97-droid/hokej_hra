@@ -144,10 +144,16 @@
     <section class="card">
       <div class="section-head">
         <div>
-          <span class="section-kicker">Crease roster · Season 2026</span>
+          <span id="goalieStatsKicker" class="section-kicker">Crease roster · Season 2026</span>
           <h2>Databáze brankářů</h2>
         </div>
-        <span class="pill live">Goalies</span>
+        <div class="section-tools">
+          <div class="range-switch" aria-label="Období statistik">
+            <button class="active" type="button" data-stats-range="season">Aktuální sezóna</button>
+            <button type="button" data-stats-range="total">Total</button>
+          </div>
+          <span class="pill live">Goalies</span>
+        </div>
       </div>
 
       <div class="table-wrap">

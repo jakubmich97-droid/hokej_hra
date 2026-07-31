@@ -244,7 +244,8 @@ async function generateSchedule(type, category) {
     away_goals: 0,
     home_result: null,
     away_result: null,
-    played_at: null
+    // Původní tabulka vyžaduje played_at. Do simulace jde o technický čas vytvoření rozpisu.
+    played_at: new Date().toISOString()
   }));
 
   try {
@@ -273,7 +274,7 @@ async function generateSchedule(type, category) {
 }
 
 function isMatchPlayed(match) {
-  return Boolean(match.played_at || match.home_result || match.away_result);
+  return Boolean(match.home_result || match.away_result);
 }
 
 function getUnplayedFilteredMatches() {
@@ -367,7 +368,8 @@ async function simulateMatches(matchesToPlay, label) {
         .from("hockey_matches")
         .update(simulation.result)
         .eq("id", simulation.id)
-        .is("played_at", null)
+        .is("home_result", null)
+        .is("away_result", null)
     ));
     const failedResponse = responses.find(response => response.error);
     if (failedResponse?.error) throw failedResponse.error;

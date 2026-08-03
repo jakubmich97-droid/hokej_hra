@@ -9,7 +9,8 @@ const RESULT_POINTS = { V: 3, VP: 2, PP: 1, P: 0 };
 const els = {
   statusBox: document.querySelector("#statusBox"),
   leagueTeamsCount: document.querySelector("#leagueTeamsCount"),
-  leagueTeamsTable: document.querySelector("#leagueTeamsTable")
+  leagueTeamsTable: document.querySelector("#leagueTeamsTable"),
+  playoffBracket: document.querySelector("#playoffBracket")
 };
 
 function setStatus(message, type = "muted") {
@@ -26,9 +27,8 @@ async function loadLeagueTeams() {
       .order("name", { ascending: true }),
     db
       .from("hockey_matches")
-      .select("id, round_number, home_team_id, away_team_id, home_goals, away_goals, home_result, away_result, played_at")
+      .select("id, competition_type, round_number, home_team_id, away_team_id, home_goals, away_goals, home_result, away_result, played_at")
       .eq("season", CURRENT_SEASON)
-      .eq("competition_type", "league")
   ]);
 
   if (teamsResponse.error) {
@@ -42,9 +42,17 @@ async function loadLeagueTeams() {
   }
 
   const teams = teamsResponse.data || [];
-  const standings = calculateStandings(teams, matchesResponse.data || []);
+  const matches = matchesResponse.data || [];
+  const standings = calculateStandings(
+    teams,
+    matches.filter(match => match.competition_type === "league")
+  );
   els.leagueTeamsCount.textContent = Math.min(teams.length, LEAGUE_SIZE);
   renderLeagueSlots(standings);
+  renderPlayoffBracket(
+    matches.filter(match => String(match.competition_type || "").startsWith("league_playoff_")),
+    teams
+  );
 
   if (teams.length > LEAGUE_SIZE) {
     setStatus(`Liga obsahuje ${teams.length} týmů, ale soutěž má pouze 6 míst.`, "error");
@@ -158,8 +166,8 @@ function renderLeagueSlots(standings) {
     const goalDifference = getGoalDifference(standing);
 
     return `
-      <tr>
-        <td>${index + 1}</td>
+      <tr class="${index < 4 ? "playoff-qualified" : "playoff-out"}">
+        <td><span class="league-position">${index + 1}</span>${index < 4 ? '<span class="qualified-mark">Q</span>' : ""}</td>
         <td>
           <span class="team-table-name">
             <img
@@ -188,6 +196,98 @@ function renderLeagueSlots(standings) {
   });
 
   els.leagueTeamsTable.innerHTML = rows.join("");
+}
+
+function renderPlayoffBracket(matches, teams) {
+  if (!matches.length) {
+    els.playoffBracket.innerHTML = `
+      <p class="playoff-empty">Play-off zatím nebylo vygenerováno. Po základní části postoupí první čtyři týmy.</p>
+    `;
+    return;
+  }
+
+  const teamsById = new Map(teams.map(team => [String(team.id), team]));
+  const series = [
+    { type: "league_playoff_sf1", title: "Semifinále 1", fallback: "1. vs 4." },
+    { type: "league_playoff_sf2", title: "Semifinále 2", fallback: "2. vs 3." },
+    { type: "league_playoff_final", title: "Finále", fallback: "Vítězové semifinále", final: true }
+  ];
+
+  els.playoffBracket.innerHTML = series.map(item => {
+    const seriesMatches = matches
+      .filter(match => match.competition_type === item.type)
+      .sort((first, second) => Number(first.round_number) - Number(second.round_number));
+    if (!seriesMatches.length) {
+      return `
+        <article class="playoff-series waiting">
+          <span class="playoff-stage">${item.title}</span>
+          <strong>${item.fallback}</strong>
+          <small>Čeká na postupující</small>
+        </article>
+      `;
+    }
+
+    const firstMatch = seriesMatches[0];
+    const firstTeam = teamsById.get(String(firstMatch.home_team_id));
+    const secondTeam = teamsById.get(String(firstMatch.away_team_id));
+    const firstWins = countSeriesWins(seriesMatches, firstMatch.home_team_id);
+    const secondWins = countSeriesWins(seriesMatches, firstMatch.away_team_id);
+    const winnerId = firstWins >= 2
+      ? firstMatch.home_team_id
+      : secondWins >= 2 ? firstMatch.away_team_id : null;
+    const winner = winnerId ? teamsById.get(String(winnerId)) : null;
+
+    return `
+      <article class="playoff-series ${winner ? "decided" : "active"}">
+        <span class="playoff-stage">${item.title}</span>
+        ${renderSeriesTeam(firstTeam, firstWins, winnerId)}
+        ${renderSeriesTeam(secondTeam, secondWins, winnerId)}
+        <div class="series-games">
+          ${seriesMatches.map(match => renderSeriesGame(match, teamsById)).join("")}
+        </div>
+        <div class="series-advance ${winner ? "ready" : ""}">
+          ${winner
+            ? `${item.final ? "Mistr" : "Postupuje"}: <strong>${escapeHtml(winner.short_name || winner.name)}</strong>`
+            : "Série probíhá"}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function countSeriesWins(matches, teamId) {
+  return matches.filter(match => {
+    if (!isPlayedLeagueMatch(match)) return false;
+    const winnerId = Number(match.home_goals) > Number(match.away_goals)
+      ? match.home_team_id
+      : match.away_team_id;
+    return String(winnerId) === String(teamId);
+  }).length;
+}
+
+function renderSeriesTeam(team, wins, winnerId) {
+  if (!team) return "";
+  const winner = String(team.id) === String(winnerId || "");
+  return `
+    <div class="series-team ${winner ? "winner" : ""}">
+      <img src="${getTeamLogo(team.short_name)}" alt="" class="team-logo" onerror="this.onerror=null;this.src='images/teams/default.svg'">
+      <span><strong>${escapeHtml(team.short_name || team.name)}</strong><small>${escapeHtml(team.name)}</small></span>
+      <b>${wins}</b>
+    </div>
+  `;
+}
+
+function renderSeriesGame(match, teamsById) {
+  const home = teamsById.get(String(match.home_team_id));
+  const away = teamsById.get(String(match.away_team_id));
+  const played = isPlayedLeagueMatch(match);
+  return `
+    <span class="series-game ${played ? "played" : ""}">
+      ${Number(match.round_number)}. zápas ·
+      ${escapeHtml(home?.short_name || "?")} ${played ? Number(match.home_goals) : "–"}
+      : ${played ? Number(match.away_goals) : "–"} ${escapeHtml(away?.short_name || "?")}
+    </span>
+  `;
 }
 
 function renderLastFive(form) {

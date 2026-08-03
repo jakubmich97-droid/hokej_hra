@@ -11,6 +11,12 @@ const BASE_SHOTS = 28;
 const SHOT_STRENGTH_MULTIPLIER = 18;
 const HOME_SHOT_ADVANTAGE = 1.5;
 const SKATER_POSITIONS = ["C", "LK", "PK", "LO", "PO"];
+const REGULAR_LEAGUE_MATCHES = 30;
+const PLAYOFF_SERIES = {
+  sf1: "league_playoff_sf1",
+  sf2: "league_playoff_sf2",
+  final: "league_playoff_final"
+};
 
 const state = {
   teams: [],
@@ -32,6 +38,8 @@ const els = {
   filterCompetition: document.querySelector("#filterCompetition"),
   filterCategory: document.querySelector("#filterCategory"),
   refreshMatchesBtn: document.querySelector("#refreshMatchesBtn"),
+  generatePlayoffBtn: document.querySelector("#generatePlayoffBtn"),
+  playoffGeneratorHint: document.querySelector("#playoffGeneratorHint"),
   generateButtons: [...document.querySelectorAll(".generate-btn")],
   simulateNextRoundBtn: document.querySelector("#simulateNextRoundBtn"),
   simulateAllBtn: document.querySelector("#simulateAllBtn")
@@ -79,6 +87,7 @@ async function loadMatches({ synchronizeRatings = true } = {}) {
     button.disabled = !state.schemaReady || state.simulationBusy || state.generationBusy;
     button.title = state.schemaReady ? "" : "Nejdřív spusť SQL rozšíření hockey_matches.";
   });
+  updatePlayoffButton();
 
   applyFilters();
 
@@ -115,7 +124,7 @@ function applyFilters() {
   const category = els.filterCategory.value;
 
   state.filteredMatches = state.matches.filter(match => {
-    const isLeague = match.competition_type === "league";
+    const isLeague = isLeagueCompetition(match.competition_type);
     const matchesCompetition = !competition
       || (competition === "league" ? isLeague : !isLeague);
     const matchesCategory = !category || match.age_category === category;
@@ -128,10 +137,10 @@ function applyFilters() {
 function render() {
   els.matchesCount.textContent = state.matches.length;
   els.leagueMatchesCount.textContent = state.matches.filter(
-    match => match.competition_type === "league"
+    match => isLeagueCompetition(match.competition_type)
   ).length;
   els.nationalMatchesCount.textContent = state.matches.filter(
-    match => match.competition_type !== "league"
+    match => !isLeagueCompetition(match.competition_type)
   ).length;
   els.playedMatchesCount.textContent = state.matches.filter(isMatchPlayed).length;
 
@@ -157,7 +166,7 @@ function renderMatchesTable() {
     return `
       <tr class="${played ? "played-match" : ""}">
         <td>${renderCompetition(match)}</td>
-        <td><strong>${match.round_number ?? "—"}</strong></td>
+        <td><strong>${renderRound(match)}</strong></td>
         <td>${renderTeamName(homeTeam)}</td>
         <td>${renderTeamName(awayTeam)}</td>
         <td>${played ? formatOptionalNumber(match.home_attack, 3) : "—"}</td>
@@ -191,6 +200,7 @@ els.generateButtons.forEach(button => {
 });
 
 els.refreshMatchesBtn.addEventListener("click", loadMatches);
+els.generatePlayoffBtn.addEventListener("click", generatePlayoffs);
 els.simulateNextRoundBtn.addEventListener("click", simulateNextRound);
 els.simulateAllBtn.addEventListener("click", simulateAllRemaining);
 
@@ -309,6 +319,140 @@ async function generateSchedule(type, category) {
   }
 }
 
+function updatePlayoffButton() {
+  const regularMatches = state.matches.filter(match => match.competition_type === "league");
+  const playoffExists = state.matches.some(match => isPlayoffMatch(match));
+  const regularSeasonComplete = regularMatches.length === REGULAR_LEAGUE_MATCHES
+    && regularMatches.every(isMatchPlayed);
+  const disabled = !state.schemaReady
+    || state.simulationBusy
+    || state.generationBusy
+    || !regularSeasonComplete
+    || playoffExists;
+
+  els.generatePlayoffBtn.disabled = disabled;
+  if (playoffExists) {
+    els.generatePlayoffBtn.textContent = "Play-off vygenerováno";
+    els.playoffGeneratorHint.textContent = "Další zápasy série se doplňují podle výsledků.";
+  } else if (regularSeasonComplete) {
+    els.generatePlayoffBtn.textContent = "Generovat play-off";
+    els.playoffGeneratorHint.textContent = "Postupují první čtyři týmy: 1.–4. a 2.–3.";
+  } else {
+    const played = regularMatches.filter(isMatchPlayed).length;
+    els.generatePlayoffBtn.textContent = "Generovat play-off";
+    els.playoffGeneratorHint.textContent = `Odehráno ${played} z ${REGULAR_LEAGUE_MATCHES} ligových zápasů.`;
+  }
+}
+
+async function generatePlayoffs() {
+  const regularMatches = state.matches.filter(match => match.competition_type === "league");
+  if (regularMatches.length !== REGULAR_LEAGUE_MATCHES || !regularMatches.every(isMatchPlayed)) {
+    setStatus("Play-off lze vygenerovat až po odehrání všech 30 ligových zápasů.", "error");
+    return;
+  }
+  if (state.matches.some(match => isPlayoffMatch(match))) {
+    setStatus("Play-off pro tuto sezónu už existuje.", "error");
+    return;
+  }
+
+  const seeds = calculateLeagueSeeds();
+  if (seeds.length < 4) {
+    setStatus("Pro play-off musí být v ligové tabulce alespoň čtyři týmy.", "error");
+    return;
+  }
+
+  const rows = [
+    ...createSeriesOpeningGames(PLAYOFF_SERIES.sf1, seeds[0].team, seeds[3].team),
+    ...createSeriesOpeningGames(PLAYOFF_SERIES.sf2, seeds[1].team, seeds[2].team)
+  ];
+
+  try {
+    setGeneratorBusy(true);
+    setStatus("Generuji semifinále play-off...");
+    const { error } = await db.from("hockey_matches").insert(rows);
+    if (error) throw error;
+    await loadMatches();
+    setStatus("Play-off vygenerováno: semifinále 1.–4. a 2.–3., série na dvě vítězství.", "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(`Play-off nelze vygenerovat: ${error.message}`, "error");
+  } finally {
+    setGeneratorBusy(false);
+  }
+}
+
+function calculateLeagueSeeds() {
+  const pointsByResult = { V: 3, VP: 2, PP: 1, P: 0 };
+  const standings = new Map(
+    state.teams
+      .filter(team => team.team_type === "league")
+      .map(team => [String(team.id), {
+        team, points: 0, goalsFor: 0, goalsAgainst: 0, wins: 0
+      }])
+  );
+
+  state.matches
+    .filter(match => match.competition_type === "league" && isMatchPlayed(match))
+    .forEach(match => {
+      const home = standings.get(String(match.home_team_id));
+      const away = standings.get(String(match.away_team_id));
+      if (!home || !away) return;
+      home.points += pointsByResult[match.home_result] ?? 0;
+      away.points += pointsByResult[match.away_result] ?? 0;
+      home.goalsFor += Number(match.home_goals || 0);
+      home.goalsAgainst += Number(match.away_goals || 0);
+      away.goalsFor += Number(match.away_goals || 0);
+      away.goalsAgainst += Number(match.home_goals || 0);
+      if (["V", "VP"].includes(match.home_result)) home.wins += 1;
+      if (["V", "VP"].includes(match.away_result)) away.wins += 1;
+    });
+
+  return [...standings.values()].sort((first, second) =>
+    second.points - first.points
+    || (second.goalsFor - second.goalsAgainst) - (first.goalsFor - first.goalsAgainst)
+    || second.goalsFor - first.goalsFor
+    || second.wins - first.wins
+    || String(first.team.name).localeCompare(String(second.team.name), "cs")
+  );
+}
+
+function createSeriesOpeningGames(competitionType, higherSeed, lowerSeed) {
+  return [
+    createPlayoffRow(competitionType, 1, higherSeed, lowerSeed),
+    createPlayoffRow(competitionType, 2, lowerSeed, higherSeed)
+  ];
+}
+
+function createPlayoffRow(competitionType, gameNumber, homeTeam, awayTeam) {
+  return {
+    season: CURRENT_SEASON,
+    competition_type: competitionType,
+    age_category: null,
+    round_number: gameNumber,
+    home_team_id: homeTeam.id,
+    away_team_id: awayTeam.id,
+    home_attack: null,
+    home_defense: null,
+    away_attack: null,
+    away_defense: null,
+    home_shots: 0,
+    away_shots: 0,
+    home_goals: 0,
+    away_goals: 0,
+    home_result: null,
+    away_result: null,
+    played_at: new Date().toISOString()
+  };
+}
+
+function isLeagueCompetition(value) {
+  return value === "league" || String(value || "").startsWith("league_playoff_");
+}
+
+function isPlayoffMatch(match) {
+  return String(match.competition_type || "").startsWith("league_playoff_");
+}
+
 function isMatchPlayed(match) {
   return Boolean(match.home_result || match.away_result);
 }
@@ -404,6 +548,7 @@ async function simulateMatches(matchesToPlay, label) {
     }
 
     await recalculateAllRatings();
+    await progressPlayoffs();
 
     await loadMatches();
     setStatus(`Odehráno: ${label}.`, "ok");
@@ -415,9 +560,91 @@ async function simulateMatches(matchesToPlay, label) {
   }
 }
 
+async function progressPlayoffs() {
+  const { data, error } = await db
+    .from("hockey_matches")
+    .select("*")
+    .eq("season", CURRENT_SEASON)
+    .like("competition_type", "league_playoff_%");
+  if (error) throw error;
+
+  const playoffMatches = data || [];
+  if (!playoffMatches.length) return;
+  const rowsToInsert = [];
+  [PLAYOFF_SERIES.sf1, PLAYOFF_SERIES.sf2].forEach(seriesType => {
+    const series = getSeriesMatches(playoffMatches, seriesType);
+    if (seriesNeedsDecider(series)) {
+      rowsToInsert.push(createDecidingGame(seriesType, series));
+    }
+  });
+
+  const firstSemifinalWinner = getSeriesWinner(
+    getSeriesMatches(playoffMatches, PLAYOFF_SERIES.sf1)
+  );
+  const secondSemifinalWinner = getSeriesWinner(
+    getSeriesMatches(playoffMatches, PLAYOFF_SERIES.sf2)
+  );
+  const finalMatches = getSeriesMatches(playoffMatches, PLAYOFF_SERIES.final);
+
+  if (firstSemifinalWinner && secondSemifinalWinner && !finalMatches.length) {
+    const seeds = calculateLeagueSeeds().map(item => item.team);
+    const finalists = [firstSemifinalWinner, secondSemifinalWinner]
+      .map(teamId => state.teams.find(team => String(team.id) === String(teamId)))
+      .filter(Boolean)
+      .sort((first, second) =>
+        seeds.findIndex(team => String(team.id) === String(first.id))
+        - seeds.findIndex(team => String(team.id) === String(second.id))
+      );
+    if (finalists.length === 2) {
+      rowsToInsert.push(...createSeriesOpeningGames(
+        PLAYOFF_SERIES.final,
+        finalists[0],
+        finalists[1]
+      ));
+    }
+  } else if (seriesNeedsDecider(finalMatches)) {
+    rowsToInsert.push(createDecidingGame(PLAYOFF_SERIES.final, finalMatches));
+  }
+
+  if (!rowsToInsert.length) return;
+  const insertResponse = await db.from("hockey_matches").insert(rowsToInsert);
+  if (insertResponse.error) throw insertResponse.error;
+}
+
+function getSeriesMatches(matches, competitionType) {
+  return matches
+    .filter(match => match.competition_type === competitionType)
+    .sort((first, second) => Number(first.round_number) - Number(second.round_number));
+}
+
+function getSeriesWinner(matches) {
+  const wins = new Map();
+  matches.filter(isMatchPlayed).forEach(match => {
+    const winnerId = Number(match.home_goals) > Number(match.away_goals)
+      ? match.home_team_id
+      : match.away_team_id;
+    const key = String(winnerId);
+    wins.set(key, (wins.get(key) || 0) + 1);
+  });
+  return [...wins.entries()].find(([, winCount]) => winCount >= 2)?.[0] || null;
+}
+
+function seriesNeedsDecider(matches) {
+  return matches.length === 2
+    && matches.every(isMatchPlayed)
+    && !getSeriesWinner(matches);
+}
+
+function createDecidingGame(competitionType, matches) {
+  const firstGame = matches[0];
+  const homeTeam = state.teams.find(team => String(team.id) === String(firstGame.home_team_id));
+  const awayTeam = state.teams.find(team => String(team.id) === String(firstGame.away_team_id));
+  return createPlayoffRow(competitionType, 3, homeTeam, awayTeam);
+}
+
 async function persistSimulation(simulation) {
   const { match, homeLineup, awayLineup, result } = simulation;
-  const scope = match.competition_type === "league" ? "league" : "national";
+  const scope = isLeagueCompetition(match.competition_type) ? "league" : "national";
   const playerRows = [
     ...createSkaterStatsRows(match, homeLineup, result.home_shots, result.home_goals, scope),
     ...createSkaterStatsRows(match, awayLineup, result.away_shots, result.away_goals, scope)
@@ -560,14 +787,19 @@ async function resetMatch(match) {
   const teamsById = new Map(state.teams.map(team => [String(team.id), team]));
   const homeTeam = teamsById.get(String(match.home_team_id));
   const awayTeam = teamsById.get(String(match.away_team_id));
+  const dependentMatches = getDependentPlayoffMatches(match);
+  const dependencyWarning = dependentMatches.length
+    ? ` Navazující zápasy play-off (${dependentMatches.length}) budou odstraněny a později vygenerovány znovu podle výsledků.`
+    : "";
   const confirmed = window.confirm(
-    `Resetovat zápas ${homeTeam?.short_name || homeTeam?.name || "Domácí"} – ${awayTeam?.short_name || awayTeam?.name || "Hosté"}? Výsledek i individuální statistiky budou odstraněny.`
+    `Resetovat zápas ${homeTeam?.short_name || homeTeam?.name || "Domácí"} – ${awayTeam?.short_name || awayTeam?.name || "Hosté"}? Výsledek i individuální statistiky budou odstraněny.${dependencyWarning}`
   );
   if (!confirmed) return;
 
   try {
     setSimulationBusy(true);
     setStatus("Resetuji zápas a přepočítávám ratingy...");
+    await removeDependentPlayoffMatches(dependentMatches);
     await clearMatchStats(match.id);
 
     const { error } = await db.from("hockey_matches").update({
@@ -595,6 +827,33 @@ async function resetMatch(match) {
   } finally {
     setSimulationBusy(false);
   }
+}
+
+function getDependentPlayoffMatches(match) {
+  const playoffMatches = state.matches.filter(isPlayoffMatch);
+  if (match.competition_type === "league") return playoffMatches;
+  if (!isPlayoffMatch(match)) return [];
+
+  const laterFinals = match.competition_type !== PLAYOFF_SERIES.final
+    ? playoffMatches.filter(item => item.competition_type === PLAYOFF_SERIES.final)
+    : [];
+  const decidingGame = Number(match.round_number) < 3
+    ? playoffMatches.filter(item =>
+      item.competition_type === match.competition_type
+      && Number(item.round_number) === 3
+    )
+    : [];
+  return [...new Map([...laterFinals, ...decidingGame].map(item => [String(item.id), item])).values()];
+}
+
+async function removeDependentPlayoffMatches(matches) {
+  if (!matches.length) return;
+  for (const match of matches) await clearMatchStats(match.id);
+  const { error } = await db
+    .from("hockey_matches")
+    .delete()
+    .in("id", matches.map(match => match.id));
+  if (error) throw error;
 }
 
 async function recalculateAllRatings() {
@@ -784,6 +1043,7 @@ function setSimulationBusy(isBusy) {
   els.generateButtons.forEach(button => {
     button.disabled = isBusy || state.generationBusy || !state.schemaReady;
   });
+  updatePlayoffButton();
   updateSimulationButtons();
 }
 
@@ -828,8 +1088,8 @@ function createHomeAndAwaySchedule(firstLeg) {
 
 function sortMatches(matches) {
   return [...matches].sort((first, second) => {
-    const competitionOrder = Number(first.competition_type !== "league")
-      - Number(second.competition_type !== "league");
+    const competitionOrder = getCompetitionOrder(first.competition_type)
+      - getCompetitionOrder(second.competition_type);
     if (competitionOrder) return competitionOrder;
 
     const categoryOrder = String(first.age_category || "")
@@ -864,6 +1124,7 @@ function setGeneratorBusy(isBusy) {
   els.generateButtons.forEach(button => {
     button.disabled = isBusy || state.simulationBusy || !state.schemaReady;
   });
+  updatePlayoffButton();
   updateSimulationButtons();
 }
 
@@ -872,11 +1133,33 @@ function renderCompetition(match) {
     return `<span class="competition-tag league">Liga</span>`;
   }
 
+  if (isPlayoffMatch(match)) {
+    return `<span class="competition-tag playoff">Play-off</span>`;
+  }
+
   return `
     <span class="competition-tag national">
       Repre ${escapeHtml(getCategoryLabel(match.age_category))}
     </span>
   `;
+}
+
+function renderRound(match) {
+  if (!isPlayoffMatch(match)) return match.round_number ?? "—";
+  const stage = match.competition_type === PLAYOFF_SERIES.final
+    ? "Finále"
+    : match.competition_type === PLAYOFF_SERIES.sf1 ? "SF 1" : "SF 2";
+  return `${stage} · ${Number(match.round_number || 0)}. zápas`;
+}
+
+function getCompetitionOrder(value) {
+  const order = {
+    league: 0,
+    [PLAYOFF_SERIES.sf1]: 1,
+    [PLAYOFF_SERIES.sf2]: 2,
+    [PLAYOFF_SERIES.final]: 3
+  };
+  return order[value] ?? 4;
 }
 
 function renderTeamName(team) {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Liga | Hockey Universe Simulator</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=playoff-1" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -63,7 +63,10 @@
           <span class="section-kicker">League standings</span>
           <h2>Ligová tabulka</h2>
         </div>
-        <span class="pill" data-current-season-template="Sezóna {season}">Sezóna 2000</span>
+        <div class="section-actions">
+          <span class="playoff-cut-label">TOP 4 · PLAY-OFF</span>
+          <span class="pill" data-current-season-template="Sezóna {season}">Sezóna 2000</span>
+        </div>
       </div>
 
       <div class="table-wrap">
@@ -91,13 +94,28 @@
       </div>
 
       <p class="table-note">
-        Bodování: V = 3 body, VP = 2 body, PP = 1 bod, P = 0 bodů.
+        Zvýrazněné pozice 1.–4. postupují do play-off. Bodování: V = 3 body, VP = 2 body,
+        PP = 1 bod, P = 0 bodů.
       </p>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <span class="section-kicker">Best of three</span>
+          <h2>Play-off</h2>
+        </div>
+        <span class="pill">2 vítězné zápasy</span>
+      </div>
+      <div id="playoffBracket" class="playoff-bracket">
+        <p class="playoff-empty">Play-off zatím nebylo vygenerováno.</p>
+      </div>
+      <p class="table-note">Semifinále: 1.–4. a 2.–3. Finále hrají vítězové, zápas o 3. místo se nehraje.</p>
     </section>
   </main>
 
   <script src="navigation.js"></script>
   <script src="season.js"></script>
-  <script src="league.js"></script>
+  <script src="league.js?v=playoff-1"></script>
 </body>
 </html>

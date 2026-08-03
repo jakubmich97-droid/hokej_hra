@@ -3,7 +3,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CURRENT_SEASON = HockeySeason.getCurrentSeason();
-const LEAGUE_SIZE = 6;
+const leagueSettings = HockeyLeagueSettings.get();
 const LINEUP_POSITIONS = ["C", "LK", "PK", "LO", "PO", "G"];
 const ATTACK_POSITIONS = ["C", "LK", "PK"];
 const DEFENSE_POSITIONS = ["LO", "PO"];
@@ -11,12 +11,7 @@ const BASE_SHOTS = 28;
 const SHOT_STRENGTH_MULTIPLIER = 18;
 const HOME_SHOT_ADVANTAGE = 1.5;
 const SKATER_POSITIONS = ["C", "LK", "PK", "LO", "PO"];
-const REGULAR_LEAGUE_MATCHES = 30;
-const PLAYOFF_SERIES = {
-  sf1: "league_playoff_sf1",
-  sf2: "league_playoff_sf2",
-  final: "league_playoff_final"
-};
+const REGULAR_LEAGUE_MATCHES = HockeyLeagueSettings.expectedMatches(leagueSettings.teamCount);
 
 const state = {
   teams: [],
@@ -40,6 +35,9 @@ const els = {
   refreshMatchesBtn: document.querySelector("#refreshMatchesBtn"),
   generatePlayoffBtn: document.querySelector("#generatePlayoffBtn"),
   playoffGeneratorHint: document.querySelector("#playoffGeneratorHint"),
+  configuredScheduleTeams: document.querySelector("#configuredScheduleTeams"),
+  configuredScheduleRounds: document.querySelector("#configuredScheduleRounds"),
+  configuredScheduleMatches: document.querySelector("#configuredScheduleMatches"),
   generateButtons: [...document.querySelectorAll(".generate-btn")],
   simulateNextRoundBtn: document.querySelector("#simulateNextRoundBtn"),
   simulateAllBtn: document.querySelector("#simulateAllBtn")
@@ -50,7 +48,14 @@ function setStatus(message, type = "muted") {
   els.statusBox.className = `status ${type}`;
 }
 
+function renderLeagueConfiguration() {
+  els.configuredScheduleTeams.textContent = leagueSettings.teamCount;
+  els.configuredScheduleRounds.textContent = HockeyLeagueSettings.roundCount(leagueSettings.teamCount);
+  els.configuredScheduleMatches.textContent = REGULAR_LEAGUE_MATCHES;
+}
+
 async function loadMatches({ synchronizeRatings = true } = {}) {
+  renderLeagueConfiguration();
   setStatus("Načítám zápasy a týmy...");
 
   const [teamsResponse, playersResponse, matchesResponse, schemaResponse] = await Promise.all([
@@ -236,9 +241,9 @@ async function generateSchedule(type, category) {
     : team.team_type === "national" && team.age_category === category
   );
 
-  if (isLeague && teams.length !== LEAGUE_SIZE) {
+  if (isLeague && teams.length !== leagueSettings.teamCount) {
     setStatus(
-      `Ligový rozpis vyžaduje přesně 6 týmů. Aktuálně je přidáno ${teams.length}.`,
+      `Nastavení ligy vyžaduje ${leagueSettings.teamCount} týmů, ale v databázi je ${teams.length}. Uprav ligu nebo počet týmů.`,
       "error"
     );
     return;
@@ -307,7 +312,7 @@ async function generateSchedule(type, category) {
     await loadMatches();
     setStatus(
       isLeague
-        ? "Vygenerováno 10 kol a 30 ligových zápasů."
+        ? `Vygenerováno ${HockeyLeagueSettings.roundCount(leagueSettings.teamCount)} kol a ${rows.length} ligových zápasů.`
         : `Vygenerován rozpis Repre ${getCategoryLabel(category)}: ${rows.length} zápasů.`,
       "ok"
     );
@@ -336,7 +341,7 @@ function updatePlayoffButton() {
     els.playoffGeneratorHint.textContent = "Další zápasy série se doplňují podle výsledků.";
   } else if (regularSeasonComplete) {
     els.generatePlayoffBtn.textContent = "Generovat play-off";
-    els.playoffGeneratorHint.textContent = "Postupují první čtyři týmy: 1.–4. a 2.–3.";
+    els.playoffGeneratorHint.textContent = `Postupuje TOP ${leagueSettings.playoffTeamCount}; nejvýše nasazený hraje s nejníže nasazeným.`;
   } else {
     const played = regularMatches.filter(isMatchPlayed).length;
     els.generatePlayoffBtn.textContent = "Generovat play-off";
@@ -347,7 +352,7 @@ function updatePlayoffButton() {
 async function generatePlayoffs() {
   const regularMatches = state.matches.filter(match => match.competition_type === "league");
   if (regularMatches.length !== REGULAR_LEAGUE_MATCHES || !regularMatches.every(isMatchPlayed)) {
-    setStatus("Play-off lze vygenerovat až po odehrání všech 30 ligových zápasů.", "error");
+    setStatus(`Play-off lze vygenerovat až po odehrání všech ${REGULAR_LEAGUE_MATCHES} ligových zápasů.`, "error");
     return;
   }
   if (state.matches.some(match => isPlayoffMatch(match))) {
@@ -356,29 +361,50 @@ async function generatePlayoffs() {
   }
 
   const seeds = calculateLeagueSeeds();
-  if (seeds.length < 4) {
-    setStatus("Pro play-off musí být v ligové tabulce alespoň čtyři týmy.", "error");
+  if (seeds.length < leagueSettings.playoffTeamCount) {
+    setStatus(`Pro play-off je potřeba ${leagueSettings.playoffTeamCount} týmů.`, "error");
     return;
   }
 
-  const rows = [
-    ...createSeriesOpeningGames(PLAYOFF_SERIES.sf1, seeds[0].team, seeds[3].team),
-    ...createSeriesOpeningGames(PLAYOFF_SERIES.sf2, seeds[1].team, seeds[2].team)
-  ];
+  const qualifiedTeams = seeds.slice(0, leagueSettings.playoffTeamCount).map(item => item.team);
+  const rows = createPlayoffRound(1, qualifiedTeams);
 
   try {
     setGeneratorBusy(true);
-    setStatus("Generuji semifinále play-off...");
+    setStatus("Generuji první kolo play-off...");
     const { error } = await db.from("hockey_matches").insert(rows);
     if (error) throw error;
     await loadMatches();
-    setStatus("Play-off vygenerováno: semifinále 1.–4. a 2.–3., série na dvě vítězství.", "ok");
+    setStatus(`Play-off pro ${qualifiedTeams.length} týmů bylo vygenerováno. Série se hrají na dvě vítězství.`, "ok");
   } catch (error) {
     console.error(error);
     setStatus(`Play-off nelze vygenerovat: ${error.message}`, "error");
   } finally {
     setGeneratorBusy(false);
   }
+}
+
+function createPlayoffRound(roundNumber, seededTeams) {
+  const rows = [];
+  for (let index = 0; index < seededTeams.length / 2; index += 1) {
+    const higherSeed = seededTeams[index];
+    const lowerSeed = seededTeams[seededTeams.length - 1 - index];
+    rows.push(...createSeriesOpeningGames(
+      createPlayoffSeriesType(roundNumber, index + 1),
+      higherSeed,
+      lowerSeed
+    ));
+  }
+  return rows;
+}
+
+function createPlayoffSeriesType(roundNumber, seriesNumber) {
+  return `league_playoff_r${roundNumber}_s${seriesNumber}`;
+}
+
+function parsePlayoffSeriesType(value) {
+  const match = String(value || "").match(/^league_playoff_r(\d+)_s(\d+)$/);
+  return match ? { round: Number(match[1]), series: Number(match[2]) } : null;
 }
 
 function calculateLeagueSeeds() {
@@ -570,44 +596,45 @@ async function progressPlayoffs() {
 
   const playoffMatches = data || [];
   if (!playoffMatches.length) return;
+  const parsedMatches = playoffMatches
+    .map(match => ({ match, series: parsePlayoffSeriesType(match.competition_type) }))
+    .filter(item => item.series);
+  if (!parsedMatches.length) return;
+  const currentRound = Math.max(...parsedMatches.map(item => item.series.round));
+  const currentRoundMatches = parsedMatches
+    .filter(item => item.series.round === currentRound)
+    .map(item => item.match);
+  const seriesTypes = [...new Set(currentRoundMatches.map(match => match.competition_type))]
+    .sort((first, second) =>
+      parsePlayoffSeriesType(first).series - parsePlayoffSeriesType(second).series
+    );
   const rowsToInsert = [];
-  [PLAYOFF_SERIES.sf1, PLAYOFF_SERIES.sf2].forEach(seriesType => {
+  seriesTypes.forEach(seriesType => {
     const series = getSeriesMatches(playoffMatches, seriesType);
     if (seriesNeedsDecider(series)) {
       rowsToInsert.push(createDecidingGame(seriesType, series));
     }
   });
-
-  const firstSemifinalWinner = getSeriesWinner(
-    getSeriesMatches(playoffMatches, PLAYOFF_SERIES.sf1)
-  );
-  const secondSemifinalWinner = getSeriesWinner(
-    getSeriesMatches(playoffMatches, PLAYOFF_SERIES.sf2)
-  );
-  const finalMatches = getSeriesMatches(playoffMatches, PLAYOFF_SERIES.final);
-
-  if (firstSemifinalWinner && secondSemifinalWinner && !finalMatches.length) {
-    const seeds = calculateLeagueSeeds().map(item => item.team);
-    const finalists = [firstSemifinalWinner, secondSemifinalWinner]
-      .map(teamId => state.teams.find(team => String(team.id) === String(teamId)))
-      .filter(Boolean)
-      .sort((first, second) =>
-        seeds.findIndex(team => String(team.id) === String(first.id))
-        - seeds.findIndex(team => String(team.id) === String(second.id))
-      );
-    if (finalists.length === 2) {
-      rowsToInsert.push(...createSeriesOpeningGames(
-        PLAYOFF_SERIES.final,
-        finalists[0],
-        finalists[1]
-      ));
-    }
-  } else if (seriesNeedsDecider(finalMatches)) {
-    rowsToInsert.push(createDecidingGame(PLAYOFF_SERIES.final, finalMatches));
+  if (rowsToInsert.length) {
+    const insertResponse = await db.from("hockey_matches").insert(rowsToInsert);
+    if (insertResponse.error) throw insertResponse.error;
+    return;
   }
 
-  if (!rowsToInsert.length) return;
-  const insertResponse = await db.from("hockey_matches").insert(rowsToInsert);
+  const winners = seriesTypes.map(seriesType =>
+    getSeriesWinner(getSeriesMatches(playoffMatches, seriesType))
+  );
+  if (winners.some(winner => !winner) || winners.length <= 1) return;
+  const leagueSeeds = calculateLeagueSeeds().map(item => item.team);
+  const advancingTeams = winners
+    .map(teamId => state.teams.find(team => String(team.id) === String(teamId)))
+    .filter(Boolean)
+    .sort((first, second) =>
+      leagueSeeds.findIndex(team => String(team.id) === String(first.id))
+      - leagueSeeds.findIndex(team => String(team.id) === String(second.id))
+    );
+  const nextRows = createPlayoffRound(currentRound + 1, advancingTeams);
+  const insertResponse = await db.from("hockey_matches").insert(nextRows);
   if (insertResponse.error) throw insertResponse.error;
 }
 
@@ -834,8 +861,12 @@ function getDependentPlayoffMatches(match) {
   if (match.competition_type === "league") return playoffMatches;
   if (!isPlayoffMatch(match)) return [];
 
-  const laterFinals = match.competition_type !== PLAYOFF_SERIES.final
-    ? playoffMatches.filter(item => item.competition_type === PLAYOFF_SERIES.final)
+  const currentSeries = parsePlayoffSeriesType(match.competition_type);
+  const laterRounds = currentSeries
+    ? playoffMatches.filter(item => {
+      const parsed = parsePlayoffSeriesType(item.competition_type);
+      return parsed && parsed.round > currentSeries.round;
+    })
     : [];
   const decidingGame = Number(match.round_number) < 3
     ? playoffMatches.filter(item =>
@@ -843,7 +874,7 @@ function getDependentPlayoffMatches(match) {
       && Number(item.round_number) === 3
     )
     : [];
-  return [...new Map([...laterFinals, ...decidingGame].map(item => [String(item.id), item])).values()];
+  return [...new Map([...laterRounds, ...decidingGame].map(item => [String(item.id), item])).values()];
 }
 
 async function removeDependentPlayoffMatches(matches) {
@@ -1146,20 +1177,23 @@ function renderCompetition(match) {
 
 function renderRound(match) {
   if (!isPlayoffMatch(match)) return match.round_number ?? "—";
-  const stage = match.competition_type === PLAYOFF_SERIES.final
+  const parsed = parsePlayoffSeriesType(match.competition_type);
+  if (!parsed) return `Play-off · ${Number(match.round_number || 0)}. zápas`;
+  const totalRounds = Math.log2(leagueSettings.playoffTeamCount);
+  const stageName = parsed.round === totalRounds
     ? "Finále"
-    : match.competition_type === PLAYOFF_SERIES.sf1 ? "SF 1" : "SF 2";
+    : parsed.round === totalRounds - 1
+      ? "SF"
+      : parsed.round === totalRounds - 2 ? "ČF" : `${parsed.round}. kolo`;
+  const stage = parsed.round === totalRounds ? stageName : `${stageName} ${parsed.series}`;
   return `${stage} · ${Number(match.round_number || 0)}. zápas`;
 }
 
 function getCompetitionOrder(value) {
-  const order = {
-    league: 0,
-    [PLAYOFF_SERIES.sf1]: 1,
-    [PLAYOFF_SERIES.sf2]: 2,
-    [PLAYOFF_SERIES.final]: 3
-  };
-  return order[value] ?? 4;
+  if (value === "league") return 0;
+  const parsed = parsePlayoffSeriesType(value);
+  if (parsed) return parsed.round * 100 + parsed.series;
+  return 10000;
 }
 
 function renderTeamName(team) {

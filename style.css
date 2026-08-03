@@ -1250,8 +1250,16 @@ select:focus {
 
 .playoff-bracket {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
+}
+
+.dialog-note.validation-error {
+  color: var(--pink);
+}
+
+.dialog-note.validation-ok {
+  color: var(--green);
 }
 
 .playoff-series {
@@ -2198,3 +2206,69 @@ tbody tr:last-child td {
 }
 
 @media (max-width: 580px) {
+  .game-topbar-inner {
+    width: min(100% - 20px, 1320px);
+  }
+
+  .brand-copy strong {
+    font-size: 0.78rem;
+  }
+
+  .brand-copy small {
+    font-size: 0.58rem;
+  }
+
+  .season-chip {
+    padding: 8px 10px;
+    font-size: 0.62rem;
+  }
+
+  .game-nav {
+    width: 100%;
+  }
+
+  .game-nav a {
+    flex: 0 0 auto;
+    justify-content: center;
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 0.69rem;
+  }
+
+  .nav-icon {
+    display: none;
+  }
+
+  h1 {
+    font-size: clamp(2.25rem, 13vw, 3.5rem);
+  }
+
+  .card {
+    padding: 20px 16px;
+  }
+
+  .section-head {
+    gap: 10px;
+  }
+
+  .pill {
+    padding: 6px 8px;
+    font-size: 0.58rem;
+  }
+
+  .hero-actions .btn,
+  .form > .btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

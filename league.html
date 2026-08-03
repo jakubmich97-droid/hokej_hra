@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Liga | Hockey Universe Simulator</title>
-  <link rel="stylesheet" href="style.css?v=playoff-1" />
+  <link rel="stylesheet" href="style.css?v=dynamic-league-1" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -28,7 +28,7 @@
         <p class="eyebrow">League control</p>
         <h1>Liga</h1>
         <p class="subtitle">
-          Šestičlenná soutěž hraná systémem každý s každým doma i venku.
+          Dynamická soutěž hraná systémem každý s každým doma i venku.
         </p>
       </div>
       <div class="hero-emblem" aria-hidden="true">LGE</div>
@@ -41,19 +41,25 @@
         <span class="stat-code">TMS</span>
         <small>Obsazená místa</small>
         <span id="leagueTeamsCount" class="stat-value">0</span>
-        <em>z maximálně 6 týmů</em>
+        <em>z <span id="configuredLeagueTeams">6</span> nastavených týmů</em>
       </div>
       <div class="stat">
         <span class="stat-code">RND</span>
         <small>Počet kol</small>
-        <span class="stat-value">10</span>
+        <span id="leagueRoundsCount" class="stat-value">10</span>
         <em>doma i venku</em>
       </div>
       <div class="stat">
         <span class="stat-code live">MCH</span>
         <small>Počet zápasů</small>
-        <span class="stat-value">30</span>
+        <span id="leagueMatchesTotal" class="stat-value">30</span>
         <em>po kompletním obsazení</em>
+      </div>
+      <div class="stat">
+        <span class="stat-code live">PO</span>
+        <small>Postup do play-off</small>
+        <span id="playoffTeamsCount" class="stat-value">4</span>
+        <em>nejlepších týmů</em>
       </div>
     </section>
 
@@ -64,7 +70,8 @@
           <h2>Ligová tabulka</h2>
         </div>
         <div class="section-actions">
-          <span class="playoff-cut-label">TOP 4 · PLAY-OFF</span>
+          <button id="editLeagueBtn" class="btn secondary compact-btn" type="button">Upravit ligu</button>
+          <span id="playoffCutLabel" class="playoff-cut-label">TOP 4 · PLAY-OFF</span>
           <span class="pill" data-current-season-template="Sezóna {season}">Sezóna 2000</span>
         </div>
       </div>
@@ -94,7 +101,7 @@
       </div>
 
       <p class="table-note">
-        Zvýrazněné pozice 1.–4. postupují do play-off. Bodování: V = 3 body, VP = 2 body,
+        Zvýrazněné pozice postupují do play-off. Bodování: V = 3 body, VP = 2 body,
         PP = 1 bod, P = 0 bodů.
       </p>
     </section>
@@ -110,12 +117,33 @@
       <div id="playoffBracket" class="playoff-bracket">
         <p class="playoff-empty">Play-off zatím nebylo vygenerováno.</p>
       </div>
-      <p class="table-note">Semifinále: 1.–4. a 2.–3. Finále hrají vítězové, zápas o 3. místo se nehraje.</p>
+      <p class="table-note">V každém kole hraje nejvýše nasazený s nejníže nasazeným. Zápas o 3. místo se nehraje.</p>
     </section>
   </main>
 
+  <dialog id="leagueSettingsDialog" class="game-dialog">
+    <form id="leagueSettingsForm" class="form dialog-form">
+      <div class="dialog-head">
+        <div><span class="section-kicker">League settings</span><h2>Upravit ligu</h2></div>
+        <button class="icon-btn" type="button" data-close-league-dialog aria-label="Zavřít">×</button>
+      </div>
+      <div class="row">
+        <label><span>Počet týmů v lize</span><input name="team_count" type="number" min="2" max="32" required /></label>
+        <label><span>Počet týmů v play-off</span><input name="playoff_team_count" type="number" min="2" max="32" required /></label>
+      </div>
+      <p id="leagueSettingsValidation" class="dialog-note">
+        Play-off musí mít 2, 4, 8, 16 nebo 32 týmů a nesmí překročit velikost ligy.
+      </p>
+      <div class="dialog-actions">
+        <button class="btn secondary" type="button" data-close-league-dialog>Zrušit</button>
+        <button class="btn" type="submit">Uložit nastavení</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="navigation.js"></script>
   <script src="season.js"></script>
-  <script src="league.js?v=playoff-1"></script>
+  <script src="league-settings.js?v=dynamic-league-1"></script>
+  <script src="league.js?v=dynamic-league-1"></script>
 </body>
 </html>

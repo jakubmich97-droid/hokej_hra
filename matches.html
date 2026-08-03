@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Zápasy | Hockey Universe Simulator</title>
-  <link rel="stylesheet" href="style.css?v=playoff-1" />
+  <link rel="stylesheet" href="style.css?v=dynamic-league-1" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -46,7 +46,7 @@
       <div class="generator-layout">
         <div class="generator-panel">
           <span class="generator-label">Liga</span>
-          <strong>6 týmů · 10 kol · 30 zápasů</strong>
+          <strong><span id="configuredScheduleTeams">6</span> týmů · <span id="configuredScheduleRounds">10</span> kol · <span id="configuredScheduleMatches">30</span> zápasů</strong>
           <p>Každý s každým jednou doma a jednou venku.</p>
           <button class="btn generate-btn" type="button" data-generate="league">
             Generovat zápasy Liga
@@ -55,7 +55,7 @@
             Generovat play-off
           </button>
           <small id="playoffGeneratorHint" class="generator-hint">
-            Aktivuje se po odehrání všech 30 ligových zápasů.
+            Aktivuje se po odehrání celé základní části.
           </small>
         </div>
 
@@ -167,7 +167,8 @@
 
   <script src="navigation.js"></script>
   <script src="season.js"></script>
+  <script src="league-settings.js?v=dynamic-league-1"></script>
   <script src="ratings.js?v=rating-sort-fix-2"></script>
-  <script src="matches.js?v=playoff-1"></script>
+  <script src="matches.js?v=dynamic-league-1"></script>
 </body>
 </html>

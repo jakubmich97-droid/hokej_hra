@@ -2,15 +2,25 @@ const SUPABASE_URL = "https://nqvpxopsiiagemumfbmc.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xdnB4b3BzaWlhZ2VtdW1mYm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTQwNTcsImV4cCI6MjA5NTI3MDA1N30.VQYWGLALTxD84EksKwwUuVh5zfoAkCgenhMRXm3xdMs";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const LEAGUE_SIZE = 6;
 const CURRENT_SEASON = HockeySeason.getCurrentSeason();
 const RESULT_POINTS = { V: 3, VP: 2, PP: 1, P: 0 };
+let leagueSettings = HockeyLeagueSettings.get();
+let loadedMatches = [];
 
 const els = {
   statusBox: document.querySelector("#statusBox"),
   leagueTeamsCount: document.querySelector("#leagueTeamsCount"),
   leagueTeamsTable: document.querySelector("#leagueTeamsTable"),
-  playoffBracket: document.querySelector("#playoffBracket")
+  playoffBracket: document.querySelector("#playoffBracket"),
+  configuredLeagueTeams: document.querySelector("#configuredLeagueTeams"),
+  leagueRoundsCount: document.querySelector("#leagueRoundsCount"),
+  leagueMatchesTotal: document.querySelector("#leagueMatchesTotal"),
+  playoffTeamsCount: document.querySelector("#playoffTeamsCount"),
+  playoffCutLabel: document.querySelector("#playoffCutLabel"),
+  editLeagueBtn: document.querySelector("#editLeagueBtn"),
+  leagueSettingsDialog: document.querySelector("#leagueSettingsDialog"),
+  leagueSettingsForm: document.querySelector("#leagueSettingsForm"),
+  leagueSettingsValidation: document.querySelector("#leagueSettingsValidation")
 };
 
 function setStatus(message, type = "muted") {
@@ -19,6 +29,7 @@ function setStatus(message, type = "muted") {
 }
 
 async function loadLeagueTeams() {
+  renderLeagueConfiguration();
   const [teamsResponse, matchesResponse] = await Promise.all([
     db
       .from("hockey_teams")
@@ -43,28 +54,32 @@ async function loadLeagueTeams() {
 
   const teams = teamsResponse.data || [];
   const matches = matchesResponse.data || [];
+  loadedMatches = matches;
   const standings = calculateStandings(
     teams,
     matches.filter(match => match.competition_type === "league")
   );
-  els.leagueTeamsCount.textContent = Math.min(teams.length, LEAGUE_SIZE);
+  els.leagueTeamsCount.textContent = teams.length;
   renderLeagueSlots(standings);
   renderPlayoffBracket(
     matches.filter(match => String(match.competition_type || "").startsWith("league_playoff_")),
     teams
   );
 
-  if (teams.length > LEAGUE_SIZE) {
-    setStatus(`Liga obsahuje ${teams.length} týmů, ale soutěž má pouze 6 míst.`, "error");
+  if (teams.length !== leagueSettings.teamCount) {
+    setStatus(`Upozornění: nastavení ligy počítá s ${leagueSettings.teamCount} týmy, ale v databázi je ${teams.length}.`, "error");
     return;
   }
 
-  setStatus(
-    teams.length === LEAGUE_SIZE
-      ? `Ligová tabulka pro sezónu ${CURRENT_SEASON} je načtená.`
-      : `Obsazeno ${teams.length} z ${LEAGUE_SIZE} ligových míst.`,
-    teams.length === LEAGUE_SIZE ? "ok" : "muted"
-  );
+  setStatus(`Ligová tabulka pro sezónu ${CURRENT_SEASON} je načtená.`, "ok");
+}
+
+function renderLeagueConfiguration() {
+  els.configuredLeagueTeams.textContent = leagueSettings.teamCount;
+  els.leagueRoundsCount.textContent = HockeyLeagueSettings.roundCount(leagueSettings.teamCount);
+  els.leagueMatchesTotal.textContent = HockeyLeagueSettings.expectedMatches(leagueSettings.teamCount);
+  els.playoffTeamsCount.textContent = leagueSettings.playoffTeamCount;
+  els.playoffCutLabel.textContent = `TOP ${leagueSettings.playoffTeamCount} · PLAY-OFF`;
 }
 
 function calculateStandings(teams, matches) {
@@ -149,7 +164,7 @@ function getGoalDifference(standing) {
 }
 
 function renderLeagueSlots(standings) {
-  const rows = Array.from({ length: LEAGUE_SIZE }, (_, index) => {
+  const rows = Array.from({ length: Math.max(leagueSettings.teamCount, standings.length) }, (_, index) => {
     const standing = standings[index];
 
     if (!standing) {
@@ -166,8 +181,8 @@ function renderLeagueSlots(standings) {
     const goalDifference = getGoalDifference(standing);
 
     return `
-      <tr class="${index < 4 ? "playoff-qualified" : "playoff-out"}">
-        <td><span class="league-position">${index + 1}</span>${index < 4 ? '<span class="qualified-mark">Q</span>' : ""}</td>
+      <tr class="${index < leagueSettings.playoffTeamCount ? "playoff-qualified" : "playoff-out"}">
+        <td><span class="league-position">${index + 1}</span>${index < leagueSettings.playoffTeamCount ? '<span class="qualified-mark">Q</span>' : ""}</td>
         <td>
           <span class="team-table-name">
             <img
@@ -201,17 +216,28 @@ function renderLeagueSlots(standings) {
 function renderPlayoffBracket(matches, teams) {
   if (!matches.length) {
     els.playoffBracket.innerHTML = `
-      <p class="playoff-empty">Play-off zatím nebylo vygenerováno. Po základní části postoupí první čtyři týmy.</p>
+      <p class="playoff-empty">Play-off zatím nebylo vygenerováno. Po základní části postoupí TOP ${leagueSettings.playoffTeamCount}.</p>
     `;
     return;
   }
 
   const teamsById = new Map(teams.map(team => [String(team.id), team]));
-  const series = [
-    { type: "league_playoff_sf1", title: "Semifinále 1", fallback: "1. vs 4." },
-    { type: "league_playoff_sf2", title: "Semifinále 2", fallback: "2. vs 3." },
-    { type: "league_playoff_final", title: "Finále", fallback: "Vítězové semifinále", final: true }
-  ];
+  const totalRounds = Math.log2(leagueSettings.playoffTeamCount);
+  const series = [];
+  for (let round = 1; round <= totalRounds; round += 1) {
+    const seriesCount = leagueSettings.playoffTeamCount / (2 ** round);
+    for (let seriesNumber = 1; seriesNumber <= seriesCount; seriesNumber += 1) {
+      const final = round === totalRounds;
+      series.push({
+        type: `league_playoff_r${round}_s${seriesNumber}`,
+        title: final ? "Finále" : `${getPlayoffRoundLabel(round, totalRounds)} ${seriesNumber}`,
+        fallback: round === 1
+          ? `${seriesNumber}. nasazený pár`
+          : "Čeká na postupující",
+        final
+      });
+    }
+  }
 
   els.playoffBracket.innerHTML = series.map(item => {
     const seriesMatches = matches
@@ -253,6 +279,12 @@ function renderPlayoffBracket(matches, teams) {
       </article>
     `;
   }).join("");
+}
+
+function getPlayoffRoundLabel(round, totalRounds) {
+  if (round === totalRounds - 1) return "Semifinále";
+  if (round === totalRounds - 2) return "Čtvrtfinále";
+  return `${round}. kolo`;
 }
 
 function countSeriesWins(matches, teamId) {
@@ -327,6 +359,67 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+els.editLeagueBtn.addEventListener("click", () => {
+  els.leagueSettingsForm.elements.team_count.value = leagueSettings.teamCount;
+  els.leagueSettingsForm.elements.playoff_team_count.value = leagueSettings.playoffTeamCount;
+  els.leagueSettingsValidation.textContent = "Play-off musí mít 2, 4, 8, 16 nebo 32 týmů a nesmí překročit velikost ligy.";
+  els.leagueSettingsValidation.className = "dialog-note";
+  els.leagueSettingsDialog.showModal();
+});
+
+document.querySelectorAll("[data-close-league-dialog]").forEach(button => {
+  button.addEventListener("click", () => els.leagueSettingsDialog.close());
+});
+
+els.leagueSettingsForm.addEventListener("input", validateLeagueSettingsForm);
+els.leagueSettingsForm.addEventListener("submit", event => {
+  event.preventDefault();
+  const values = getLeagueSettingsFormValues();
+  const validationError = HockeyLeagueSettings.validate(values);
+  if (validationError) {
+    showLeagueSettingsError(validationError);
+    return;
+  }
+
+  const hasRegularSchedule = loadedMatches.some(match => match.competition_type === "league");
+  const hasPlayoff = loadedMatches.some(match => String(match.competition_type || "").startsWith("league_playoff_"));
+  if (hasRegularSchedule && values.teamCount !== leagueSettings.teamCount) {
+    showLeagueSettingsError("Počet týmů nelze změnit po vygenerování rozpisu aktuální sezóny.");
+    return;
+  }
+  if (hasPlayoff && values.playoffTeamCount !== leagueSettings.playoffTeamCount) {
+    showLeagueSettingsError("Počet účastníků nelze změnit po vygenerování play-off aktuální sezóny.");
+    return;
+  }
+
+  try {
+    leagueSettings = HockeyLeagueSettings.save(values);
+    els.leagueSettingsDialog.close();
+    loadLeagueTeams();
+  } catch (error) {
+    showLeagueSettingsError(error.message);
+  }
+});
+
+function validateLeagueSettingsForm() {
+  const error = HockeyLeagueSettings.validate(getLeagueSettingsFormValues());
+  els.leagueSettingsValidation.textContent = error
+    || `Rozpis bude mít ${HockeyLeagueSettings.expectedMatches(getLeagueSettingsFormValues().teamCount)} zápasů.`;
+  els.leagueSettingsValidation.className = `dialog-note ${error ? "validation-error" : "validation-ok"}`;
+}
+
+function getLeagueSettingsFormValues() {
+  return {
+    teamCount: Number(els.leagueSettingsForm.elements.team_count.value),
+    playoffTeamCount: Number(els.leagueSettingsForm.elements.playoff_team_count.value)
+  };
+}
+
+function showLeagueSettingsError(message) {
+  els.leagueSettingsValidation.textContent = message;
+  els.leagueSettingsValidation.className = "dialog-note validation-error";
 }
 
 loadLeagueTeams();
